@@ -1,0 +1,29 @@
+# IDE config
+.idea/
+.vscode/
+.vscode
+
+# Python environment and cache
+.venv/
+env/
+venv/
+__pycache__/
+*.cache
+*.pyc
+.pytest_cache
+CACHEDIR.TAG
+
+# System files
++.DS_Store*
+
+# Env files
+.env
+
+# Jupyter
+.ipynb_checkpoints
+
+# IPython
+profile_default/
+ipython_config.py
+data/
+draft.txt

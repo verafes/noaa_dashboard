@@ -1,0 +1,12 @@
+pandas
+plotly
+dash
+selenium
+pip
+selenium
+pytest
+Faker
+dotenv
+flask
+requests
+python-dotenv
