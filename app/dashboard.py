@@ -6,14 +6,8 @@ os.environ['DASH_HOT_RELOAD'] = 'False'
 os.environ['WEBSOCKET_URL'] = ''
 os.environ['NODE_OPTIONS'] = '--no-warnings'
 warnings.filterwarnings("ignore")
-warnings.filterwarnings("ignore", module="dash")
-warnings.filterwarnings("ignore", module="dash_renderer")
-warnings.filterwarnings("ignore", module="dash_core_components")
-warnings.filterwarnings("ignore", category=UserWarning)
-warnings.filterwarnings("ignore", message="Support for defaultProps will be removed")
-warnings.filterwarnings("ignore", message="componentWillMount has been renamed")
-warnings.filterwarnings("ignore", message="componentWillReceiveProps has been renamed")
 
+from .logger import logger
 
 import dash
 from dash import Dash, dcc, html, Input, Output, State, no_update
@@ -33,6 +27,7 @@ os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
 def create_dash_app():
     """Creates and configures the Dash application"""
+    logger.info("[APP] Initializing Dash NOAA Weather Dashboard...")
     app = Dash(
         __name__,
         assets_folder='../assets',
@@ -219,7 +214,7 @@ def create_dash_app():
         # suppress_callback_exceptions=True,
     )
     def handle_clear(n_clicks):
-        print(f"Clear button clicked {n_clicks} times")
+        logger.info(f"Clear button clicked {n_clicks} times")
         if n_clicks:
             return (
                 '',  # city-input
@@ -258,16 +253,18 @@ def create_dash_app():
         prevent_initial_call=True
     )
     def update_dashboard(n_clicks, city_name, data_type, start_date=None, end_date=None):
-        print("\n[DEBUG] update_dashboard")
+        logger.info("[DASHBOARD] update_dashboard triggered")
         global stations # global_df
         try:
             ctx = dash.ctx or dash.callback_context
         except:
             ctx = dash.callback_context
         if not ctx.triggered:
+            logger.warning("[DASHBOARD] No callback triggered")
             return [dash.no_update] * 4, "default"  # ← Add this
         # 2. Validate required inputs
         if not n_clicks or not all([city_name, data_type]):
+            logger.warning("[VALIDATION] Missing required inputs: city or data_type")
             return (
                 html.Div(""),
                 dash.no_update,
@@ -275,10 +272,11 @@ def create_dash_app():
                 format_status_message("Please fill city and data type fields", "error"),
                 "default"
             )
-        print(f"n_clicks {n_clicks}, City: {city_name}, Data type: {data_type}, Start date: {start_date}, End date: {end_date}")
+        logger.info(f"n_clicks {n_clicks}, City: {city_name}, Data type: {data_type}, Start date: {start_date}, End date: {end_date}")
 
         trigger_id = ctx.triggered_id if hasattr(ctx, 'triggered_id') else dash.ctx.triggered_id
         if trigger_id == 'reset-button':
+            logger.info("[RESET] Reset button triggered inside update_dashboard")
             return None, None, {'display': 'none'}, None
 
         # 3. Always call scrape_and_download first
@@ -286,6 +284,7 @@ def create_dash_app():
         csv_url = scrape_and_download(city_name, data_type, start_date, end_date)
         # 4. Validate response - Case 1: Received a message (not CSV URL)
         if not csv_url.endswith('.csv'):
+            logger.error(f"[FETCH ERROR] Failed to get CSV URL, got message: {csv_url}")
             return (
                     html.Div("", style={'color': 'red'}),
                     dash.no_update,
@@ -302,11 +301,14 @@ def create_dash_app():
         try:
             # 5. Process data - Get fresh CSV URL from NOAA
             if cache_exists(city_name, data_type):
+                logger.info(f"[CACHE] Loading cached data for {city_name} ({data_type})")
                 df = load_from_cache(city_name, data_type)
             else:
                 try:
+                    logger.info(f"[DOWNLOAD] Reading CSV from URL: {csv_url}")
                     df = pd.read_csv(csv_url, low_memory=False)
                     save_to_cache(df, city_name, data_type)
+                    logger.info(f"[CACHE] Saved data to cache for {city_name} ({data_type})")
                 except pd.errors.EmptyDataError:
                     return format_status_message("Downloaded file is empty", "error")
                 except pd.errors.ParserError:
@@ -315,8 +317,8 @@ def create_dash_app():
                     return format_status_message(f"Unexpected error: {str(e)}", "error")
 
             df['DATE'] = pd.to_datetime(df['DATE'])
-            print(f"Data loaded successfully. Stations found: {df['NAME'].unique()}")
-            print(df.head())
+            logger.info(f"[DATA] Data loaded successfully with stations: {df['NAME'].unique().tolist()}")
+            logger.debug(f"[DATA] Head of dataframe:\n{df.head()}")
 
             # Standardize column names (DATE vs date)
             date_col = 'DATE' if 'DATE' in df.columns else 'date'
@@ -325,14 +327,15 @@ def create_dash_app():
             # Apply date filtering if dates are provided
             start_date = pd.to_datetime(start_date) if start_date else None
             end_date = pd.to_datetime(end_date) if end_date else None
-            print("start_date", start_date)
-            print("end_date", end_date)
+            logger.info(f"[FILTER] Applying date filter: start={start_date}, end={end_date}")
+
             if start_date:
                 df = df[df[date_col] >= start_date]
             if end_date:
                 df = df[df[date_col] <= end_date]
                 # If filtering resulted in empty dataframe, show error
                 if df.empty:
+                    logger.warning("[FILTER] No data available after filtering by date range")
                     return (
                         html.Div("!!No data available for the selected date range",
                                  style={'color': 'red', 'margin': '20px'}),
@@ -343,7 +346,7 @@ def create_dash_app():
                     )
             # 6. Get unique stations
             stations = df['NAME'].unique().tolist() if 'NAME' in df.columns else []
-            print("stations", stations)
+            logger.info(f"[DATA] Unique stations extracted: {stations}")
             # Create dashboard components
             date_range_text = ""
             if start_date or end_date:
@@ -355,7 +358,7 @@ def create_dash_app():
             required_cols = {'DATE', 'TMIN', 'TAVG', 'TMAX', 'PRCP', 'NAME'}
             missing = required_cols - set(df.columns)
             if missing:
-                print(f"Warning: Missing columns {missing} - some visualizations may be limited")
+                logger.warning(f"[DATA] Warning: Missing columns {missing} - some visualizations may be limited")
                 return (
                     html.Div(f"Missing columns: {', '.join(missing)}"),
                     dash.no_update,
@@ -364,8 +367,8 @@ def create_dash_app():
                     "default"
                 )
             viz_style = {'display': 'block'} if required_cols.issubset(df.columns) else {'display': 'none'}
-            print("Columns in DataFrame:", df.columns.tolist())
-            print("Required columns present:", required_cols.issubset(df.columns))
+            logger.debug(f"[DATA] Columns in DataFrame: {df.columns.tolist()}")
+            logger.debug(f"[DATA] Required columns present: {required_cols.issubset(df.columns)}")
 
             results = html.Div([
                 html.H3(f"Weather Data for {city_name}"),
@@ -387,6 +390,7 @@ def create_dash_app():
                 "circle"  # Success spinner style
             )
         except Exception as e:
+            logger.error(f"[EXCEPTION] Error processing data: {str(e)}", exc_info=True)
             return (
                 html.Div(f"Error: {str(e)}", style={'color': 'red', 'margin': '20px'}),
                 dash.no_update,
@@ -408,31 +412,48 @@ def create_dash_app():
         Input('data-store', 'data')
     )
     def update_visualization_controls(data):
-        print("\n[DEBUG] update_visualization_controls - Visualization controls callback triggered!")
+        logger.info("[DEBUG] update_visualization_controls - Visualization controls callback triggered!")
         # global global_df
         if not data:
             raise dash.exceptions.PreventUpdate
+        logger.info(f"Data received: {len(data)} records")
         df = pd.DataFrame(data)
         # Standardize date column name
         date_col = 'DATE' if 'DATE' in df.columns else 'date'
+        logger.info(f"Using date column: {date_col}")
         df[date_col] = pd.to_datetime(df[date_col])
+        logger.info(f"DataFrame columns: {df.columns.tolist()}")
         # Get min/max dates from data
         min_date = df[date_col].min() # min_date grayed - why
         max_date = df[date_col].max() # min_date grayed - why
-
-        # Get city name from the data
-        city_name = df['NAME'].iloc[0].split(',')[0] if 'NAME' in df.columns else "Selected Location"
+        logger.info(f"Date range from data: min_date={min_date}, max_date={max_date}")
+        # Get city name from the data and Update station dropdown
+        if 'NAME' in df.columns and not df['NAME'].empty:
+            city_name = df['NAME'].iloc[0].split(',')[0]
+            stations = df['NAME'].unique().tolist()
+            logger.info(f"City name: {city_name}, Stations found: {stations}")
+        else:
+            city_name = "Selected Location"
+            stations = []
+            logger.warning("No 'NAME' column or empty in data; using default city and empty stations")
         # Update station dropdown
         stations = df['NAME'].unique().tolist()
         station_options = [{'label': s, 'value': s} for s in stations]
+        logger.info(f"Station options prepared: {station_options}")
 
         # Update date range picker
         min_date = df[date_col].min()
         max_date = df[date_col].max()
+
+        first_station = stations[0] if stations else None
+        logger.info(f"Default station selected: {first_station}")
+
+        logger.info(f"Updating visualization controls for city: {city_name} with stations: {stations}")
+
         return (
             f"🌦️ Historical {city_name} Weather Dashboard",
             station_options,
-            stations[0] if stations else None,
+            first_station,
             min_date,
             max_date,
             min_date,
@@ -450,33 +471,47 @@ def create_dash_app():
         State('data-store', 'data')
     )
     def update_charts(selected_station, start_date, end_date, data_type, data):
+        logger.info("[DEBUG] update_charts called")
         if not data or not selected_station:
+            logger.warning("No data received; preventing update")
             raise dash.exceptions.PreventUpdate
         try:
+            logger.info(f"Data type: {data_type}")
+
             df = pd.DataFrame(data)
+            logger.info(f"Data loaded into DataFrame with {len(df)} rows")
+
             # Standardize column names
             date_col = 'DATE' if 'DATE' in df.columns else 'date'
             df[date_col] = pd.to_datetime(df[date_col])
             # Filter by station
             filtered = df[df['NAME'] == selected_station].copy()
+            logger.info(f"Filtered data by station '{selected_station}', rows: {len(filtered)}")
+
             # Filter by date range
             if start_date and end_date:
                 start_date = pd.to_datetime(start_date)
                 end_date = pd.to_datetime(end_date)
                 filtered = filtered[(filtered['DATE'] >= start_date) &
                                     (filtered['DATE'] <= end_date)]
+                logger.info(f"Filtered data by date range, rows after filter: {len(filtered)}")
             # Convert numeric columns to float (this fixes the error)
             numeric_cols = ['TMIN', 'TAVG', 'TMAX', 'PRCP']
             for col in numeric_cols:
                 if col in filtered.columns:
                     filtered[col] = pd.to_numeric(filtered[col], errors='coerce')
+                    logger.info(f"Converted column {col} to numeric")
             data_type_label = get_data_type_label(data_type)
+            logger.info(f"Data type label: {data_type_label}")
+
+            temp_y_cols = [col for col in ['TMIN', 'TAVG', 'TMAX'] if col in filtered.columns]
+            logger.info(f"Temperature columns used for plot: {temp_y_cols}")
+
             # Create  chart
             temp_fig = px.line(
                 filtered,
                 x='DATE',
-                # y=['TMIN', 'TAVG', 'TMAX'],
-                y=[col for col in ['TMIN', 'TAVG', 'TMAX'] if col in filtered.columns],
+                y=temp_y_cols,
                 title=f"{data_type_label} Trend - {selected_station}",
                 labels={'value': 'Temperature (°F)', 'variable': 'Metric'}
             )
@@ -496,9 +531,11 @@ def create_dash_app():
                 marker_line_width=0.3,
                 opacity=1  # Full opacity
             )
+
+            logger.info(f"Updated charts for station '{selected_station}' between {start_date} and {end_date}")
             return temp_fig, precip_fig
         except Exception as e:
-            print(f"Error in update_charts: {str(e)}")
+            logger.error(f"Error in update_charts: {str(e)}", exc_info=True)
             return no_update, no_update
 
     # This handles CSV downloads - called when download-button is clicked
@@ -521,17 +558,22 @@ def create_dash_app():
             return (no_update, format_status_message("Please fill city and data type fields", "error"),
                     no_update, no_update)
             # raise dash.exceptions.PreventUpdate
+        logger.info(f"Download button clicked: n_clicks={n_clicks}")
         try:
+            logger.info(f"Starting CSV download for city='{city_name}', data_type='{data_type}', "
+                        f"start_date='{start_date}', end_date='{end_date}'")
             csv_url = scrape_and_download(city_name, data_type, start_date, end_date)
             if not isinstance(csv_url, str) or not csv_url.strip().lower().endswith('.csv'):
                 # If it's not a CSV, assume it's a message
+                logger.warning(f"CSV URL invalid or error message received: {csv_url}")
                 return no_update, format_status_message(csv_url, "error"), no_update, no_update
             # return dcc.send_file(csv_url)
+            logger.info(f"CSV downloaded successfully: {csv_url}")
             return (
                 no_update, no_update, no_update,
                 format_status_message(f"Successfully downloaded: {os.path.basename(csv_url)}", "success") )
         except Exception as e:
-            print(f"Download failed: {str(e)}")
+            logger.error(f"Download failed: {str(e)}", exc_info=True)
             return (no_update, format_status_message(f"Download failed: {str(e)}", "error"),
                     no_update, no_update)
 

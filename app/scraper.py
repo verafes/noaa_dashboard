@@ -1,12 +1,18 @@
+import logging
 import os
 import time
 import requests
+from selenium.webdriver import ActionChains
+
+from .logger import logger
+import random
 
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.chrome.service import Service
 
 from dotenv import load_dotenv
 
@@ -36,8 +42,12 @@ def init_driver():
             "download.directory_upgrade": True,
             "safebrowsing.enabled": True
         })
-        driver = webdriver.Chrome(options=chrome_options)
+        if os.getenv("HEADLESS", "false").lower() == "true":
+            chrome_options.add_argument("--headless=new")
+        service = Service(log_path=os.devnull)
+        driver = webdriver.Chrome(service=service, options=chrome_options)
         os.makedirs("data", exist_ok=True)
+        logger.info("Chrome WebDriver initialized.")
     return driver
 
 def cleanup_driver():
@@ -46,6 +56,7 @@ def cleanup_driver():
     if driver is not None:
         driver.quit()
         driver = None
+        logger.info("WebDriver closed.")
 
 def go_to_element(element):
     """ Scrolls the page to the selected element, making it visible to the user. """
@@ -62,6 +73,7 @@ def download_csv(url):
     """Gets filename from the URL, downloads csv file and saves to ./data/"""
     filename = os.path.basename(url)
 
+    logger.info(f"Downloading CSV: {filename}")
     file_path = os.path.join("data", filename)
     response = requests.get(url)
     response.raise_for_status()  # Raise error if download fails
@@ -69,10 +81,10 @@ def download_csv(url):
     with open(file_path, "wb") as f:
         f.write(response.content)
 
-
     with open(os.path.join("data", "latest_download.txt"), "w") as f:
         f.write(filename)
 
+    logger.info(f"Saved CSV to: {file_path}")
     return file_path
 
 # scrapping function
@@ -83,12 +95,8 @@ def scrape_and_download(city_name, data_type, start_date=None, end_date=None):
     try:
         driver = init_driver()
         wait = WebDriverWait(driver, 20)
-        if not start_date:
-            start_date = None
-        if not end_date:
-            end_date = None
-        print(
-            f"[DEBUG] Called scrape_and_download with: city={city_name}, type={data_type}, start={start_date}, end={end_date}")
+
+        logger.info(f"Scraping started for city: {city_name}, type: {data_type}, start={start_date}, end={end_date}")
 
         # Open NOAA Daily Summaries search page
         driver.get(url)
@@ -110,17 +118,16 @@ def scrape_and_download(city_name, data_type, start_date=None, end_date=None):
             where_input.send_keys(letter)
             time.sleep(0.1)
 
-        print("city_name", city_name)
+        logger.info(f"Typing city: {city_name}")
 
         # Select from dropdown
         wait.until(
             EC.visibility_of_all_elements_located((By.CSS_SELECTOR, "#whereComponent .dropdown-menu .dropdown-item")))
         items = driver.find_elements(By.CSS_SELECTOR, "#whereComponent .dropdown-menu .dropdown-item")
-        print(f"Dropdown items found: {len(items)}")
-        for item in items:
-            print(item.text)
+        logger.info(f"Dropdown items found: {len(items)}")
 
         for item in items:
+            logger.debug(f"Item: {item.text}")
             if city_name.lower() in item.text.lower():
                 item.click()
                 time.sleep(1)
@@ -132,15 +139,17 @@ def scrape_and_download(city_name, data_type, start_date=None, end_date=None):
         badge = wait.until(EC.visibility_of_element_located(
             (By.CSS_SELECTOR, "#whereComponent .badge")
         ))
-        print(f"Badge confirmed: {badge.text}")
+        logger.info(f"Location badge confirmed: {badge.text}")
 
         # Go to table with csv
-        # driver.execute_script("window.scrollBy(0, 300);")
         msg_element = driver.find_element(By.CSS_SELECTOR, ".alert.alert-info")
+        logger.debug(f"Alert message element text: {msg_element.text}")
+
         msg = "No search results were found based on your criteria"
 
         if msg_element.text == msg:
-            print(msg)
+            logger.warning(msg)
+            logger.debug("Returning error message instead of CSV URL")
             return msg
         else:
             element = driver.find_element(By.CSS_SELECTOR, ".row.search-result-row.ng-star-inserted h5 a")
@@ -153,7 +162,7 @@ def scrape_and_download(city_name, data_type, start_date=None, end_date=None):
 
             # Get the download URL
             csv_url = links[0].get_attribute("href")
-            print("csv_url", csv_url)
+            logger.info(f"CSV download URL: {csv_url}")
 
             # Download and save csv file
             download_csv(csv_url)
@@ -162,7 +171,7 @@ def scrape_and_download(city_name, data_type, start_date=None, end_date=None):
             return csv_url
 
     except Exception as e:
-        print(f"Scraping error: {e}")
+        logger.error(f"Scraping error: {e}", exc_info=True)
         raise
     finally:
         cleanup_driver()
