@@ -1,11 +1,9 @@
-import logging
 import os
 import time
 import requests
-from selenium.webdriver import ActionChains
+from requests.exceptions import HTTPError
 
 from .logger import logger
-import random
 
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -22,7 +20,6 @@ load_dotenv()
 DOWNLOAD_DIR = os.path.abspath("data")
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 url = os.getenv("NOAA_URL")
-
 
 def init_driver():
     """Handles creation WebDriver """
@@ -75,23 +72,31 @@ def download_csv(url):
 
     logger.info(f"Downloading CSV: {filename}")
     file_path = os.path.join("data", filename)
-    response = requests.get(url)
-    response.raise_for_status()  # Raise error if download fails
+    try:
+        response = requests.get(url)
+        response.raise_for_status()  # Raise error if download fails
 
-    with open(file_path, "wb") as f:
-        f.write(response.content)
+        with open(file_path, "wb") as f:
+            f.write(response.content)
 
-    with open(os.path.join("data", "latest_download.txt"), "w") as f:
-        f.write(filename)
+        with open(os.path.join("data", "latest_download.txt"), "w") as f:
+            f.write(filename)
 
-    logger.info(f"Saved CSV to: {file_path}")
-    return file_path
+        logger.info(f"Saved CSV to: {file_path}")
+        return file_path
+    except HTTPError as e:
+        if response.status_code == 503:
+            logger.info("CSV not ready yet (503), retrying...")
+            time.sleep(2)
+
+        logger.error(f"❌ Failed to download: {e}")
+        raise
+
 
 # scrapping function
 def scrape_and_download(city_name, data_type, start_date=None, end_date=None):
     """ Scrapes weather data from NOAA's Daily Summaries portal. """
     driver = None
-    # with create_driver() as driver:
     try:
         driver = init_driver()
         wait = WebDriverWait(driver, 20)
@@ -152,13 +157,14 @@ def scrape_and_download(city_name, data_type, start_date=None, end_date=None):
             logger.debug("Returning error message instead of CSV URL")
             return msg
         else:
-            element = driver.find_element(By.CSS_SELECTOR, ".row.search-result-row.ng-star-inserted h5 a")
+            element = driver.find_element(By.CSS_SELECTOR, ".row.search-result-row.ng-star-inserted h5")
             go_to_element(element)
 
             wait.until(EC.presence_of_element_located(
                 (By.CSS_SELECTOR, ".row.search-result-row.ng-star-inserted h5 a")
             ))
-            links = driver.find_elements(By.CSS_SELECTOR, ".row.search-result-row.ng-star-inserted h5 a")
+            links = driver.find_elements(
+                By.CSS_SELECTOR, ".row.search-result-row.ng-star-inserted h5 a")
 
             # Get the download URL
             csv_url = links[0].get_attribute("href")
@@ -166,7 +172,6 @@ def scrape_and_download(city_name, data_type, start_date=None, end_date=None):
 
             # Download and save csv file
             download_csv(csv_url)
-            driver.quit()
 
             return csv_url
 
