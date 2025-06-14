@@ -13,6 +13,9 @@ __pycache__/
 .pytest_cache
 CACHEDIR.TAG
 
+# log
+logs/
+
 # System files
 +.DS_Store*
 
