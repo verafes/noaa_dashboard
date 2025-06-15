@@ -13,11 +13,12 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.service import Service
 
 from dotenv import load_dotenv
+from app.utils import RAW_DATA_DIR
 
 
 # Configuration
 load_dotenv()
-DOWNLOAD_DIR = os.path.abspath("data")
+DOWNLOAD_DIR = os.path.abspath("data/raw")
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 url = os.getenv("NOAA_URL")
 
@@ -71,7 +72,7 @@ def download_csv(url):
     filename = os.path.basename(url)
 
     logger.info(f"Downloading CSV: {filename}")
-    file_path = os.path.join("data", filename)
+    file_path = os.path.join("data/raw", filename)
     try:
         response = requests.get(url)
         response.raise_for_status()  # Raise error if download fails
@@ -160,15 +161,45 @@ def scrape_and_download(city_name, data_type, start_date=None, end_date=None):
             element = driver.find_element(By.CSS_SELECTOR, ".row.search-result-row.ng-star-inserted h5")
             go_to_element(element)
 
-            wait.until(EC.presence_of_element_located(
-                (By.CSS_SELECTOR, ".row.search-result-row.ng-star-inserted h5 a")
-            ))
-            links = driver.find_elements(
-                By.CSS_SELECTOR, ".row.search-result-row.ng-star-inserted h5 a")
+            page_count = 0
+            max_pages = 3  # limited, no need to retrieve all the data
 
-            # Get the download URL
-            csv_url = links[0].get_attribute("href")
-            logger.info(f"CSV download URL: {csv_url}")
+            while page_count < max_pages:
+            # while True: loop until there are no more pages left
+                wait.until(EC.presence_of_element_located(
+                    (By.CSS_SELECTOR, ".row.search-result-row.ng-star-inserted h5 a")
+                ))
+                csv_links = []
+                links = driver.find_elements(
+                    By.CSS_SELECTOR, ".row.search-result-row.ng-star-inserted h5 a")
+
+                page = driver.find_element(By.CSS_SELECTOR,".row.search-result-row.ng-star-inserted .float-right a ")
+                go_to_element(page)
+
+                # Get the download URL
+                for link in links:
+                    href = link.get_attribute("href")
+                    text = link.text.strip()
+                    csv_links.append({'name': text, 'url': href})
+                    logger.info(f"Found CSV link: {text} -> {href}")
+                    # download_csv(href)
+                    # logger.info(f"CSV downloaded from URL: {href}")
+
+                try:
+                    next_button =driver.find_element(
+                        By.XPATH, "//li[@aria-label='next' and not(contains(@class, 'disabled'))]/a"
+                    )
+                    driver.execute_script("arguments[0].click();", next_button)
+                    time.sleep(1)
+                    page_count += 1
+                except:
+                    logger.info("No more pages.")
+                    break
+
+            logger.info(f"Total CSV links found: {len(csv_links)}")
+
+            csv_url = csv_links[0]['url']
+            logger.info(f"URL to download CSV : {csv_url}")
 
             # Download and save csv file
             download_csv(csv_url)
