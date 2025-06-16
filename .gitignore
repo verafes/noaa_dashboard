@@ -30,3 +30,6 @@ profile_default/
 ipython_config.py
 data/
 draft.txt
+!data/raw/.gitkeep
+!data/cache/.gitkeep
+!data/processed/.gitkeep
