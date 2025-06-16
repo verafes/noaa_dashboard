@@ -78,7 +78,7 @@ def register_callbacks(app):
             else:
                 try:
                     logger.info(f"[DOWNLOAD] Reading CSV from URL: {csv_url}")
-                    df = pd.read_csv(csv_url, low_memory=False)
+                    df = pd.read_csv(csv_url, low_memory=False, keep_default_na=False)
                     save_to_cache(df, city_name, data_type)
                     logger.info(f"[CACHE] Saved data to cache for {city_name} ({data_type})")
                 except pd.errors.EmptyDataError:
@@ -109,8 +109,7 @@ def register_callbacks(app):
                 if df.empty:
                     logger.warning("[FILTER] No data available after filtering by date range")
                     return (
-                        html.Div("!!No data available for the selected date range",
-                                 style={'color': 'red', 'margin': '20px'}),
+                        html.Div(f"Fetched data for location: {city_name}, data type: {data_type}", style={'margin': '20px, 0'}),
                         dash.no_update,
                         {'display': 'none'},
                         format_status_message("No data available for the selected date range", "error"),
@@ -127,17 +126,15 @@ def register_callbacks(app):
                 date_range_text = f" from {start_text} to {end_text}"
 
             # 7. Show visualization section if we have the required columns
+            logger.info(f"[DATA] All columns in downloaded file: {df.columns.tolist()}")
             required_cols = {'DATE', 'TMIN', 'TAVG', 'TMAX', 'PRCP', 'NAME'}
+            logger.info(f"Checking for: {required_cols}")
             missing = required_cols - set(df.columns)
             if missing:
                 logger.warning(f"[DATA] Warning: Missing columns {missing} - some visualizations may be limited")
-                return (
-                    html.Div(f"Missing columns: {', '.join(missing)}"),
-                    dash.no_update,
-                    {'display': 'none'},
-                    format_status_message(f"Data missing required columns: {missing}", "error"),
-                    "default"
-                )
+                for col in missing:
+                    df[col] = 0
+
             viz_style = {'display': 'block'} if required_cols.issubset(df.columns) else {'display': 'none'}
             logger.debug(f"[DATA] Columns in DataFrame: {df.columns.tolist()}")
             logger.debug(f"[DATA] Required columns present: {required_cols.issubset(df.columns)}")

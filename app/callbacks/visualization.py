@@ -4,9 +4,12 @@ import dash
 from dash import html, Input, Output, State, no_update
 
 import pandas as pd
+import numpy as np
+import plotly.express as px
 
 from ..utils import get_data_type_label, format_status_message
 from ..logger import logger
+from ..utils import create_empty_figure, get_vis_config
 
 
 # Callback to update visualization controls
@@ -42,6 +45,7 @@ def register_callbacks(app):
         logger.info(f"Using date column: {date_col}")
         df[date_col] = pd.to_datetime(df[date_col])
         logger.info(f"DataFrame columns: {df.columns.tolist()}")
+
         # Get min/max dates from data
         min_date = df[date_col].min() # min_date grayed - why
         max_date = df[date_col].max() # min_date grayed - why
@@ -81,7 +85,7 @@ def register_callbacks(app):
 
     # Callback to update charts based on user selections
     @app.callback(
-        [Output('temp-trend', 'figure'),
+        [Output('weather-graph', 'figure'),
          Output('precip-trend', 'figure')],
         [Input('station-dropdown', 'value'),
          Input('date-range', 'start_date'),
@@ -114,46 +118,158 @@ def register_callbacks(app):
                 filtered = filtered[(filtered['DATE'] >= start_date) &
                                     (filtered['DATE'] <= end_date)]
                 logger.info(f"Filtered data by date range, rows after filter: {len(filtered)}")
+
             # Convert numeric columns to float (this fixes the error)
-            numeric_cols = ['TMIN', 'TAVG', 'TMAX', 'PRCP']
+            numeric_cols = ['TMIN', 'TAVG', 'TMAX', 'PRCP', 'NAME', 'WT16', 'SNOW', 'TSUN',
+                            'WT01', 'WT05', 'WT08', 'TS']
             for col in numeric_cols:
                 if col in filtered.columns:
                     filtered[col] = pd.to_numeric(filtered[col], errors='coerce')
                     logger.info(f"Converted column {col} to numeric")
+
+            # Create MAIN WEATHER GRAPH based on data_type
+            config = get_vis_config(data_type)
             data_type_label = get_data_type_label(data_type)
             logger.info(f"Data type label: {data_type_label}")
 
-            temp_y_cols = [col for col in ['TMIN', 'TAVG', 'TMAX'] if col in filtered.columns]
-            logger.info(f"Temperature columns used for plot: {temp_y_cols}")
+            if data_type in ['TMAX', 'TMIN', 'TAVG']:  # Temperature
+                temp_y_cols = [col for col in ['TMIN', 'TAVG', 'TMAX'] if col in filtered.columns]
+                logger.info(f"Temperature columns used for plot: {temp_y_cols}")
 
-            # Create  chart
-            temp_fig = px.line(
-                filtered,
-                x='DATE',
-                y=temp_y_cols,
-                title=f"{data_type_label} Trend - {selected_station}",
-                labels={'value': 'Temperature (°F)', 'variable': 'Metric'}
-            )
-            # Create precipitation chart
-            precip_fig = px.bar(
-                filtered,
-                x='DATE',
-                y='PRCP',
-                # color='PRCP', -> it shows vertical metricts
-                title=f"Precipitation - {selected_station}",
-                labels={'PRCP': 'Precipitation (hundredths of inches)'},
-                color_discrete_sequence=['#003366'] # #9467bd #1f77b4
-            )
-            precip_fig.update_traces(
-                marker_color='#001f3f',
-                marker_line_color='blue',  # Add dark border
-                marker_line_width=0.3,
-                opacity=1  # Full opacity
-            )
+                weather_fig = px.line(
+                    filtered,
+                    x='DATE',
+                    y=temp_y_cols, # weather data_type
+                    title=f"{data_type_label} Trend - {selected_station}",
+                    labels={'value': 'Temperature (°F)', 'variable': 'Metric'},
+                    color_discrete_sequence = config['colors']
+                )
+
+            elif data_type == 'WT16':  # Rain occurrence
+                filtered['Rain'] = filtered['WT16'].apply(lambda x: 1 if x > 0 else 0)
+                weather_fig = px.bar(
+                    filtered[filtered['Rain'] > 0],
+                    x=date_col,
+                    y='Rain',
+                    title=f"Rain Days - {selected_station}",
+                    labels={'Rain': 'Rain occurred'},
+                )
+                weather_fig.update_yaxes(range=[0, 1.1], showticklabels=False)
+
+            elif data_type == 'SNOW':  # Snow occurrence
+                filtered['Snow'] = filtered['WT08'].apply(lambda x: 1 if x > 0 else 0)
+                weather_fig = px.bar(
+                    filtered[filtered['Snow'] > 0],
+                    x=date_col,
+                    y='Snow',
+                    title=f"Snow Days - {selected_station}",
+                    labels={'Snow': 'Snowfall occurred'},
+                    color_discrete_sequence=config['colors']
+                )
+                weather_fig.update_yaxes(range=[0, 1.1], showticklabels=False)
+
+            else:  # Default for other data types
+                if data_type not in filtered.columns:
+                    weather_fig = create_empty_figure(f"No {data_type} data available")
+                if config['chart_type'] == 'line':
+                    weather_fig = px.line(
+                        filtered,
+                        x='DATE',
+                        y=config['y_cols'][0],
+                        title=f"{get_data_type_label(data_type)} Over Time",
+                        labels=config['labels'],
+                        color_discrete_sequence=config['colors']
+                    )
+                elif config['chart_type'] == 'bar':
+                    weather_fig = px.bar(
+                        filtered,
+                        x='DATE',
+                        y=config['y_cols'][0],
+                        title=f"{get_data_type_label(data_type)} Over Time",
+                        labels=config['labels'],
+                        color_discrete_sequence=config['colors']
+                    )
+                elif config['chart_type'] == 'scatter':
+                    cols = [c for c in config['y_cols'] if c in filtered.columns]
+                    logger.info(f"Columns considered for event: {cols}")
+
+                    event_data = filtered[filtered[cols].gt(0).any(axis=1)]
+                    logger.info(f"Event rows found: {len(event_data)}")
+                    logger.info(event_data[['DATE'] + cols].head())
+
+                    event_data['fog_event'] = 1 + 0.2 * np.random.randn(len(event_data))
+                    config['labels']['fog_event'] = 'Fog Occurrence'
+
+                    weather_fig = px.scatter(
+                        event_data,
+                        x='DATE',
+                        y="fog_event",
+                        title=f"{get_data_type_label(data_type)} Occurrence Over Time",
+                        labels=config['labels'],
+                        color_discrete_sequence=config['colors']
+                    )
+                    weather_fig.update_traces(
+                        marker=dict(
+                            size=8,
+                            color=config['colors'][0],
+                            line=dict(width=1.5, color='light blue'),
+                            symbol='circle',
+                            opacity=0.7
+                        ),
+                        showlegend=False
+                    )
+                    weather_fig.update_yaxes(range=[0, 2], showticklabels=False)
+                    weather_fig.update_layout(
+                        xaxis_title="Date",
+                        hovermode = 'x unified',
+                    )
+                elif config['chart_type'] == 'binary':
+                    event_data = filtered[filtered[config['y_cols'][0]] > 0]
+                    if not event_data.empty:
+                        weather_fig = px.scatter(
+                            event_data,
+                            x='DATE',
+                            y=config['y_cols'][0],
+                            title=f"{get_data_type_label(data_type)} Occurrences",
+                            labels=config['labels'],
+                            color_discrete_sequence=config['colors']
+                        )
+                    else:
+                        weather_fig = px.scatter(title=f"No {get_data_type_label(data_type)} Events")
+                        weather_fig.update_layout(
+                            annotations=[dict(
+                                text=f"No {get_data_type_label(data_type)} events in selected period",
+                                showarrow=False
+                            )]
+                        )
+
+            if 'PRCP' in filtered.columns:
+                precip_fig = px.bar(
+                    filtered,
+                    x=date_col,
+                    y='PRCP',
+                    title=f"Precipitation - {selected_station}",
+                    labels={'PRCP': 'Precipitation (hundredths of inches)'},
+                    color_discrete_sequence=config['colors']
+                )
+                precip_fig.update_traces(
+                    marker_color='#001f3f',
+                    marker_line_color='blue',  # Add dark border
+                    marker_line_width=0.3,
+                    opacity=1  # Full opacity
+                )
+
+            # Common layout updates for both figures
+            for fig in [weather_fig, precip_fig]:
+                fig.update_layout(
+                    xaxis_title='Date',
+                    hovermode='x unified',
+                    template='plotly_white',
+                    margin=dict(l=40, r=40, t=60, b=40)
+                )
 
             logger.info(f"Updated charts for station '{selected_station}' between {start_date} and {end_date}")
-            return temp_fig, precip_fig
+            return weather_fig, precip_fig
         except Exception as e:
             logger.error(f"Error in update_charts: {str(e)}", exc_info=True)
             return no_update, no_update
-

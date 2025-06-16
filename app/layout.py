@@ -1,6 +1,6 @@
 from dash import html, dcc
 from datetime import datetime, date
-from .utils import DATA_TYPES, get_data_type_label, format_status_message
+from .utils import DATA_TYPES
 
 def create_layout():
 
@@ -131,7 +131,7 @@ def create_layout():
                 style={'margin': '20px', 'fontSize': '16px'}
             ),
 
-            dcc.Graph(id='temp-trend'),
+            dcc.Graph(id='weather-graph'),
             dcc.Graph(id='precip-trend')
         ]),
         dcc.Input(id='__dummy_input', style={'display': 'none'}),
