@@ -1,0 +1,101 @@
+# NOAA Daily Weather Data Cheat Sheet
+
+##  Location Info
+| Column       | Meaning                                |
+|--------------|--------------------------------------- |
+| STATION      | Unique Station ID                      |
+| DATE         | Observation Date (YYYY-MM-DD)          |
+| LATITUDE     | Location latitude (decimal degrees)    |
+| LONGITUDE    | Location longitude (decimal degrees)   |
+| ELEVATION    | Elevation (in meters)                  |
+| NAME         | Station Name                           |
+
+##  Precipitation & Snow
+| Column       | Meaning                                |
+|--------------|--------------------------------------- |
+| PRCP         | Precipitation (tenths of mm)           |
+| SNOW         | Snowfall (mm or cm)                    |
+| SNWD         | Snow depth on ground (mm or cm)        |
+
+##  Temperature
+| Column       | Meaning                                |
+|--------------|--------------------------------------- |
+| TMAX         | Max temp (°C ×10)                      |
+| TMIN         | Min temp (°C ×10)                      |
+| TAVG         | Avg temp (°C ×10)                      |
+
+##  Wind
+| Column       | Meaning                                |
+|--------------|--------------------------------------- |
+| AWND         | Avg wind speed (m/s ×10)               |
+| WSFG         | Max wind gust                          |
+| WDFG         | Wind direction of gust                 |
+| WDF1         | Wind direction (1-minute)              |
+| WDF2         | Wind direction (2-minute)              |
+| WDF5         | Wind direction (5-minute)              |
+| WSF1         | Wind speed (1-minute)                  |
+| WSF2         | Wind speed (2-minute)                  |
+| WSF5         | Wind speed (5-minute)                  |
+
+##  Sun, Pressure & Sky
+| Column       | Meaning                                |
+|--------------|--------------------------------------- |
+| TSUN         | Total sunshine (minutes)               |
+| PSUN         | % possible sunshine                    |
+| ASLP         | Avg sea-level pressure                 |
+| ASTP         | Avg station pressure                   |
+| ACMH         | Avg cloud cover (midnight)             |
+| ACSH         | Avg cloud cover (sunrise)              |
+
+##  Snow Variants
+| Column       | Meaning                                |
+|--------------|--------------------------------------- |
+| SN12         | Snowfall over 12 hours                 |
+| SN32         | Snowfall over 32 hours                 |
+| SN52         | Snowfall over 52 hours                 |
+| SX12         | Snow depth max over 12 hours           |
+| SX32         | Snow depth max over 32 hours           |
+| SX52         | Snow depth max over 52 hours           |
+
+##  Weather Type Flags (0 = no, 1 = yes)
+| Column       | Weather                                |
+|--------------|--------------------------------------- |
+| WT01         | Fog / freezing fog                     |xmd
+| WT02         | Heavy fog                              |
+| WT03         | Thunder                                |
+| WT04         | Ice pellets/sleet                      |
+| WT05         | Hail                                   |
+| WT06         | Glaze/rime                             |
+| WT07         | Blowing dust                           |
+| WT08         | Smoke/haze                             |
+| WT09         | Blowing snow                           |
+| WT10         | Tornado/funnel cloud                   |
+| WT11         | High/damaging winds                    |
+| WT13         | Lightning                              |
+| WT14         | Mist                                   |
+| WT15         | Drizzle                                |
+| WT16         | Rain                                   |
+| WT17         | Snow                                   |
+| WT18         | Ground fog                             |
+| WT19         | Ice crystals                           |
+| WT21         | Snow grains                            |
+| WT22         | Freezing drizzle                       |
+
+##  Other Variables
+| Column       | Meaning                                |
+|--------------|--------------------------------------- |
+| DAEV         | Daily evaporation                      |
+| EVAP         | Pan evaporation                        |
+| DAWM         | Water movement                         |
+| PGTM         | Peak gust time (minutes after midnight)|
+| FMTM         | Time of max temperature                |
+| MNPN         | Min pan evaporation                    |
+| MXPN         | Max pan evaporation                    |
+| FRGT         | Freezing rain trace                    |
+
+##  Attribute Flags
+| Flag Type | Meaning                                    |
+|-----------|--------------------------------------------|
+| M         | Measurement flag (e.g., estimated, missing)|
+| Q         | Quality flag (e.g., failed check)          |
+| S         | Source flag (e.g., sensor type)            |
