@@ -1,9 +1,10 @@
 import dash
-from dash import html, Input, Output, State, no_update
+from dash import html, Input, Output, State
 
 import pandas as pd
 
 from ..cache import cache_exists, load_from_cache, save_to_cache
+from ..data_processing.data_cleaner import clean_data
 from ..scraper import scrape_and_download
 from ..utils import get_data_type_label, format_status_message
 from ..logger import logger
@@ -12,8 +13,8 @@ from ..logger import logger
 # This updates the dashboard - called when submit-button is clicked
 def register_callbacks(app):
     @app.callback(
-        [Output('results-container', 'children', allow_duplicate=True), # , allow_duplicate=True
-         Output('data-store', 'data', allow_duplicate=True), # , allow_duplicate=True
+        [Output('results-container', 'children', allow_duplicate=True),
+         Output('data-store', 'data', allow_duplicate=True),
          Output('visualization-container', 'style'),
          Output('error-container', 'children'),
          Output("main-loading", "type")],
@@ -33,7 +34,7 @@ def register_callbacks(app):
             ctx = dash.callback_context
         if not ctx.triggered:
             logger.warning("[DASHBOARD] No callback triggered")
-            return [dash.no_update] * 4, "default"  # ← Add this
+            return [dash.no_update] * 4, "default"
         # 2. Validate required inputs
         if not n_clicks or not all([city_name, data_type]):
             logger.warning("[VALIDATION] Missing required inputs: city or data_type")
@@ -52,8 +53,9 @@ def register_callbacks(app):
             return None, None, {'display': 'none'}, None
 
         # 3. Always call scrape_and_download first
-        print(f"Fetching data for {city_name} ({data_type})...")
+        logger.info(f"Fetching data for {city_name} ({data_type})...")
         csv_url = scrape_and_download(city_name, data_type, start_date, end_date)
+
         # 4. Validate response - Case 1: Received a message (not CSV URL)
         if not csv_url.endswith('.csv'):
             logger.error(f"[FETCH ERROR] Failed to get CSV URL, got message: {csv_url}")
@@ -78,7 +80,12 @@ def register_callbacks(app):
             else:
                 try:
                     logger.info(f"[DOWNLOAD] Reading CSV from URL: {csv_url}")
-                    df = pd.read_csv(csv_url, low_memory=False, keep_default_na=False)
+                    df = pd.read_csv(csv_url, low_memory=False, na_values=["", " "])
+                    print("[DEBUG] DATE column before parsing:")
+                    print(df['DATE'].dropna().head(5))
+
+                    df = clean_data(df)
+
                     save_to_cache(df, city_name, data_type)
                     logger.info(f"[CACHE] Saved data to cache for {city_name} ({data_type})")
                 except pd.errors.EmptyDataError:
@@ -88,13 +95,17 @@ def register_callbacks(app):
                 except Exception as e:
                     return format_status_message(f"Unexpected error: {str(e)}", "error")
 
-            df['DATE'] = pd.to_datetime(df['DATE'])
+            df = df.dropna(subset=['DATE', 'NAME'])
+            logger.info(f"[DEBUG] Valid DATEs after parsing: {df['DATE'].notna().sum()} / {len(df)}")
+            logger.info(df['DATE'].dropna().head(3))
+
             logger.info(f"[DATA] Data loaded successfully with stations: {df['NAME'].unique().tolist()}")
-            logger.debug(f"[DATA] Head of dataframe:\n{df.head()}")
+            logger.debug(f"[DEBUG] Head of dataframe:\n{df.head()}")
 
             # Standardize column names (DATE vs date)
             date_col = 'DATE' if 'DATE' in df.columns else 'date'
-            df[date_col] = pd.to_datetime(df[date_col])
+            if not pd.api.types.is_datetime64_any_dtype(df[date_col]):
+                df[date_col] = pd.to_datetime(df[date_col], errors="coerce")
 
             # Apply date filtering if dates are provided
             start_date = pd.to_datetime(start_date) if start_date else None

@@ -3,6 +3,8 @@ import pandas as pd
 from dash import html
 import plotly.graph_objects as go
 import copy
+from .logger import logger
+
 
 # Path Constants
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -93,15 +95,15 @@ VIS_CONFIG = {
     # Fog
     'WT01': {
         'chart_type': 'scatter',
-        'y_cols': ['WT01', 'WT05'],
-        'labels': {'WT01': 'Fog Occurrence', 'WT05': 'Fog Occurrence'},
+        'y_cols': ['WT01', 'WT02'],
+        'labels': {'WT01': 'Fog Occurrence', 'WT02': 'Heavy Fog Occurrence'},
         'colors': ['#D3D3D3'] # Light gray
     },
     # Default configuration
     'default': {
         'type': 'line',
-        'y_cols': None,  # Will be set to [data_type] dynamically
-        'labels': None,  # Will use get_data_type_label
+        'y_cols': None,
+        'labels': None,
         'colors': ['#000000'],
         'required_cols': {'DATE', 'NAME'}
     }
@@ -191,3 +193,12 @@ def format_status_message(msg, msg_type="info"):
             'alignItems': 'center'
         }
     )
+
+def get_latest_csv_filename() -> str:
+    latest_file_path = os.path.join("data", "latest_download.txt")
+    if os.path.exists(latest_file_path):
+        with open(latest_file_path, "r") as f:
+            return f.read().strip()
+    else:
+        logger.info(f"[FILE] latest_download.txt not found.")
+        raise FileNotFoundError("latest_download.txt not found.")

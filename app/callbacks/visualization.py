@@ -47,8 +47,8 @@ def register_callbacks(app):
         logger.info(f"DataFrame columns: {df.columns.tolist()}")
 
         # Get min/max dates from data
-        min_date = df[date_col].min() # min_date grayed - why
-        max_date = df[date_col].max() # min_date grayed - why
+        min_date = df[date_col].min()
+        max_date = df[date_col].max()
         logger.info(f"Date range from data: min_date={min_date}, max_date={max_date}")
         # Get city name from the data and Update station dropdown
         if 'NAME' in df.columns and not df['NAME'].empty:
@@ -120,8 +120,8 @@ def register_callbacks(app):
                 logger.info(f"Filtered data by date range, rows after filter: {len(filtered)}")
 
             # Convert numeric columns to float (this fixes the error)
-            numeric_cols = ['TMIN', 'TAVG', 'TMAX', 'PRCP', 'NAME', 'WT16', 'SNOW', 'TSUN',
-                            'WT01', 'WT05', 'WT08', 'TS']
+            numeric_cols = ['TMIN', 'TAVG', 'TMAX', 'PRCP', 'NAME', 'SNOW', 'TSUN',
+                            'ACMH', 'WSFG', 'RHAV', 'WT01', 'WT02', 'WT08', 'WT16']
             for col in numeric_cols:
                 if col in filtered.columns:
                     filtered[col] = pd.to_numeric(filtered[col], errors='coerce')
@@ -135,14 +135,25 @@ def register_callbacks(app):
             if data_type in ['TMAX', 'TMIN', 'TAVG']:  # Temperature
                 temp_y_cols = [col for col in ['TMIN', 'TAVG', 'TMAX'] if col in filtered.columns]
                 logger.info(f"Temperature columns used for plot: {temp_y_cols}")
-
                 weather_fig = px.line(
                     filtered,
                     x='DATE',
                     y=temp_y_cols, # weather data_type
                     title=f"{data_type_label} Trend - {selected_station}",
                     labels={'value': 'Temperature (°F)', 'variable': 'Metric'},
-                    color_discrete_sequence = config['colors']
+                    color_discrete_sequence = config['colors'],
+                )
+                weather_fig.for_each_trace(
+                    lambda trace: trace.update(line=dict(width=1), opacity=0.7),
+                )
+                weather_fig.update_layout(
+                    yaxis=dict(
+                        title=dict(
+                            text='Temperature (°F)',
+                            standoff=20
+                        )
+                    ),
+                    legend=dict(itemsizing='constant')
                 )
 
             elif data_type == 'WT16':  # Rain occurrence
@@ -178,7 +189,7 @@ def register_callbacks(app):
                         y=config['y_cols'][0],
                         title=f"{get_data_type_label(data_type)} Over Time",
                         labels=config['labels'],
-                        color_discrete_sequence=config['colors']
+                        color_discrete_sequence=config['colors'],
                     )
                 elif config['chart_type'] == 'bar':
                     weather_fig = px.bar(
@@ -258,10 +269,13 @@ def register_callbacks(app):
                     marker_line_width=0.3,
                     opacity=1  # Full opacity
                 )
-
+            else:
+                precip_fig = create_empty_figure("No PRCP data available")
             # Common layout updates for both figures
             for fig in [weather_fig, precip_fig]:
                 fig.update_layout(
+                    title_x=0.5,
+                    title_xanchor='center',
                     xaxis_title='Date',
                     hovermode='x unified',
                     template='plotly_white',
@@ -272,4 +286,4 @@ def register_callbacks(app):
             return weather_fig, precip_fig
         except Exception as e:
             logger.error(f"Error in update_charts: {str(e)}", exc_info=True)
-            return no_update, no_update
+            return create_empty_figure("Error loading data"), create_empty_figure("Error loading data")
