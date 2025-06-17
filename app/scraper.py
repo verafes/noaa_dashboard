@@ -13,7 +13,6 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.service import Service
 
 from dotenv import load_dotenv
-from app.utils import RAW_DATA_DIR
 
 
 # Configuration
@@ -115,7 +114,7 @@ def scrape_and_download(city_name, data_type, start_date=None, end_date=None):
         # Expand Data Types section
         data_type_section = wait.until(EC.presence_of_element_located((By.ID, "whatInput")))
         data_type_section.clear()
-        data_type_section.send_keys(data_type) # "Average temperature" # id=TVG
+        data_type_section.send_keys(data_type)
 
         # Fill in the 'Where' field
         where_input = element_is_present((By.ID, "whereInput"))
@@ -163,6 +162,8 @@ def scrape_and_download(city_name, data_type, start_date=None, end_date=None):
 
             page_count = 0
             max_pages = 3  # limited, no need to retrieve all the data
+            city_match = city_name.split(',')[0].strip().lower()
+            matching_csv_url = None
 
             while page_count < max_pages:
             # while True: loop until there are no more pages left
@@ -185,6 +186,10 @@ def scrape_and_download(city_name, data_type, start_date=None, end_date=None):
                     # download_csv(href)
                     # logger.info(f"CSV downloaded from URL: {href}")
 
+                    if matching_csv_url is None and city_match in text.lower():
+                        matching_csv_url = href
+                        logger.info(f"Matched city: {city_name} in text: {text}")
+
                 try:
                     next_button =driver.find_element(
                         By.XPATH, "//li[@aria-label='next' and not(contains(@class, 'disabled'))]/a"
@@ -198,7 +203,7 @@ def scrape_and_download(city_name, data_type, start_date=None, end_date=None):
 
             logger.info(f"Total CSV links found: {len(csv_links)}")
 
-            csv_url = csv_links[0]['url']
+            csv_url = matching_csv_url if matching_csv_url else csv_links[0]['url']
             logger.info(f"URL to download CSV : {csv_url}")
 
             # Download and save csv file
