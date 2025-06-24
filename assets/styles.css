@@ -94,3 +94,15 @@ body {
     border-radius: 5px;
     border: none;
 }
+
+.legend .traces path {
+    stroke-width: 4px !important;
+}
+
+#date-range {
+    margin: 20px auto;
+    font-size: 16px;
+    display: block;
+    width: 100%;
+    text-align: center;
+}

@@ -1,30 +1,142 @@
+import os
 import pandas as pd
 from dash import html
+import plotly.graph_objects as go
+import copy
+from .logger import logger
+
+
+# Path Constants
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+RAW_DATA_DIR = os.path.join(PROJECT_ROOT, "data", "raw")
+PROCESSED_DATA_DIR = os.path.join(PROJECT_ROOT, "data", "processed")
+LOGS_DIR = os.path.join(PROJECT_ROOT, "logs")
 
 # Constants
 DATA_TYPES = [
     {'label': 'Average temperature', 'value': 'TAVG'},
+    {'label': 'Rain', 'value': 'WT16'},
+    {'label': 'Snowfall', 'value': 'Snow'},
     {'label': 'Average cloudiness (midnight-midnight)', 'value': 'ACMH'},
-    {'label': 'Average cloudiness (sunrise-sunset)', 'value': 'ACSH'},
-    {'label': 'Average Dew Point Temperature', 'value': 'ADPT'},
-    {'label': 'Average Sea Level Pressure', 'value': 'ASLP'},
-    {'label': 'Average daily wind direction', 'value': 'WDFG'},
     {'label': 'Average daily wind speed', 'value': 'WSFG'},
     {'label': 'Precipitation', 'value': 'PRCP'},
     {'label': 'Average relative humidity', 'value': 'RHAV'},
     {'label': 'Daily total sunshine', 'value': 'TSUN'},
+    {'label': 'Smoke or haze', 'value': 'WT08'},
     {'label': 'Fog, ice fog, or freezing fog', 'value': 'WT01'},
-    {'label': 'Ground fog', 'value': 'WT02'},
-    {'label': 'Drizzle', 'value': 'WT03'},
-    {'label': 'Mist', 'value': 'WT04'},
-    {'label': 'Smoke or haze', 'value': 'WT05'},
-    {'label': 'Rain', 'value': 'WT06'},
-    {'label': 'Rain or snow shower', 'value': 'WT07'},
-    {'label': 'Snowfall', 'value': 'WT08'},
-    {'label': 'Snow depth', 'value': 'WT09'},
-    {'label': 'Thickness of ice on water', 'value': 'WT17'},
-    {'label': 'Thunder', 'value': 'TS'}
 ]
+
+
+# Visualization parameters for each data type
+VIS_CONFIG = {
+    # Temperature
+    'TAVG': {
+        'chart_type': 'line',
+        'y_cols': ['TMIN', 'TAVG', 'TMAX'],
+        'labels': {'value': 'Temperature (°F)', 'variable': 'Metric'},
+        'colors': ['#1E90FF', '#FF6347', '#FF0000']  # Blue, Red, Dark Red
+    },
+    # Precipitation
+    'PRCP': {
+        'chart_type': 'bar',
+        'y_cols': ['PRCP'],
+        'labels': {'PRCP': 'Precipitation (inches)'},
+        'colors': ['#003366'] # Navy
+    },
+    # Rain occurrence (weather type 16)
+    'WT16': {
+        'chart_type': 'binary',
+        'y_cols': ['WT16'],
+        'labels': {'WT16': 'Rain Occurrence'},
+        'colors': ['#1E90FF']
+    },
+    # Snowfall
+    'Snow': {
+        'chart_type': 'bar',
+        'y_cols': ['SNOW'],
+        'labels': {'SNOW': 'Snowfall (inches)'},
+        'colors': ['#B0E0E6']  # Light blue
+    },
+    # Average cloudiness
+    'ACMH': {
+        'chart_type': 'line',
+        'y_cols': ['ACMH'],
+        'labels': {'ACMH': 'Cloudiness (%)'},
+        'colors': ['#A9A9A9'] # Dark gray
+    },
+    # Average daily wind speed
+    'WSFG': {
+        'chart_type': 'line',
+        'y_cols': ['WSFG'],
+        'labels': {'WSFG': 'Wind Speed (mph)'},
+        'colors': ['#4682B4'] # Steel blue
+    },
+    # Average relative humidity
+    'RHAV': {
+        'chart_type': 'line',
+        'y_cols': ['RHAV'],
+        'labels': {'RHAV': 'Relative Humidity (%)'},
+        'colors': ['#2E8B57']  # Sea green
+    },
+    # Daily total sunshine
+    'TSUN': {
+        'chart_type': 'bar',
+        'y_cols': ['TSUN'],
+        'labels': {'TSUN': 'Sunshine Duration (minutes)'},
+        'colors': ['#FFD700']  # Gold
+    },
+    # Smoke or haze
+    'WT08': {
+        'chart_type': 'binary',
+        'y_cols': ['WT08'],
+        'labels': {'WT08': 'Smoke or Haze Occurrence'},
+        'colors': ['#D3D3D3'] # Light gray
+    },
+    # Fog
+    'WT01': {
+        'chart_type': 'scatter',
+        'y_cols': ['WT01', 'WT02'],
+        'labels': {'WT01': 'Fog Occurrence', 'WT02': 'Heavy Fog Occurrence'},
+        'colors': ['#D3D3D3'] # Light gray
+    },
+    # Default configuration
+    'default': {
+        'type': 'line',
+        'y_cols': None,
+        'labels': None,
+        'colors': ['#000000'],
+        'required_cols': {'DATE', 'NAME'}
+    }
+}
+
+def get_vis_config(data_type):
+    """Get visualization config for given data type with fallback to default"""
+    config = copy.deepcopy(VIS_CONFIG.get(data_type, VIS_CONFIG['default']))
+
+    # For default config, set dynamic values
+    if data_type not in VIS_CONFIG:
+        config['y_cols'] = [data_type]
+        config['labels'] = {data_type: get_data_type_label(data_type)}
+        config.setdefault('required_cols', set()).add(data_type)
+
+    return config
+
+def create_empty_figure(message):
+    """Create empty figure with message"""
+    fig = go.Figure()
+    fig.update_layout(
+        title=message,
+        xaxis={'visible': False},
+        yaxis={'visible': False},
+        annotations=[{
+            'text': message,
+            'xref': 'paper',
+            'yref': 'paper',
+            'showarrow': False,
+            'font': {'size': 16}
+        }]
+    )
+    return fig
 
 # Helper Functions
 def get_data_type_label(code):
@@ -49,11 +161,11 @@ def validate_inputs(city_name, data_type):
     return True
 
 def get_label_from_value(value):
+    """Return label for the given data type from DATA_TYPES list"""
     for item in DATA_TYPES:
         if item['value'] == value:
             return item['label']
     return value
-
 
 
 def format_status_message(msg, msg_type="info"):
@@ -62,7 +174,7 @@ def format_status_message(msg, msg_type="info"):
         "error": {'color': '#dc3545', 'icon': '❌', 'background': '#f8d7da'},
         "warning": {'color': '#ffc107', 'icon': '⚠️', 'background': '#fff3cd'},
         "info": {'color': '#17a2b8', 'icon': 'ℹ️', 'background': '#d1ecf1'},
-        "success": {'color': '#28a745', 'icon': '✓', 'background': '#d4edda'}
+        "success": {'color': '#28a745', 'icon': '✅', 'background': '#d4edda'}
     }
 
     return html.Div(
@@ -81,3 +193,12 @@ def format_status_message(msg, msg_type="info"):
             'alignItems': 'center'
         }
     )
+
+def get_latest_csv_filename() -> str:
+    latest_file_path = os.path.join("data", "latest_download.txt")
+    if os.path.exists(latest_file_path):
+        with open(latest_file_path, "r") as f:
+            return f.read().strip()
+    else:
+        logger.info(f"[FILE] latest_download.txt not found.")
+        raise FileNotFoundError("latest_download.txt not found.")

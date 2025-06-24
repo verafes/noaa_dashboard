@@ -3,6 +3,8 @@ import os
 from datetime import datetime, timedelta
 import hashlib
 from .logger import logger
+from .utils import get_latest_csv_filename
+
 
 CACHE_DIR = "data/cache/"
 CACHE_EXPIRE_HOURS = 6  # Re-scrape if cache older than this
@@ -10,7 +12,8 @@ CACHE_EXPIRE_HOURS = 6  # Re-scrape if cache older than this
 
 def get_cache_key(city_name: str, data_type: str) -> str:
     """Generate a unique filename based on inputs."""
-    key_str = f"{city_name}_{data_type}".lower().replace(" ", "_")
+    latest_csv = get_latest_csv_filename()
+    key_str = f"{city_name}_{latest_csv}_{data_type}".lower().replace(" ", "_")
     return hashlib.md5(key_str.encode()).hexdigest() + ".csv"
 
 
@@ -35,7 +38,7 @@ def load_from_cache(city_name: str, data_type: str) -> pd.DataFrame:
     """Load cached CSV as DataFrame."""
     cache_file = os.path.join(CACHE_DIR, get_cache_key(city_name, data_type))
     logger.info(f"[CACHE] Loading cache from {cache_file}")
-    return pd.read_csv(cache_file, low_memory=False)
+    return pd.read_csv(cache_file, low_memory=False, keep_default_na=False)
 
 
 def save_to_cache(df: pd.DataFrame, city_name: str, data_type: str):

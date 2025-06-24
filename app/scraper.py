@@ -1,11 +1,9 @@
-import logging
 import os
 import time
 import requests
-from selenium.webdriver import ActionChains
+from requests.exceptions import HTTPError
 
 from .logger import logger
-import random
 
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -19,10 +17,9 @@ from dotenv import load_dotenv
 
 # Configuration
 load_dotenv()
-DOWNLOAD_DIR = os.path.abspath("data")
+DOWNLOAD_DIR = os.path.abspath("data/raw")
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 url = os.getenv("NOAA_URL")
-
 
 def init_driver():
     """Handles creation WebDriver """
@@ -74,24 +71,32 @@ def download_csv(url):
     filename = os.path.basename(url)
 
     logger.info(f"Downloading CSV: {filename}")
-    file_path = os.path.join("data", filename)
-    response = requests.get(url)
-    response.raise_for_status()  # Raise error if download fails
+    file_path = os.path.join("data/raw", filename)
+    try:
+        response = requests.get(url)
+        response.raise_for_status()  # Raise error if download fails
 
-    with open(file_path, "wb") as f:
-        f.write(response.content)
+        with open(file_path, "wb") as f:
+            f.write(response.content)
 
-    with open(os.path.join("data", "latest_download.txt"), "w") as f:
-        f.write(filename)
+        with open(os.path.join("data", "latest_download.txt"), "w") as f:
+            f.write(filename)
 
-    logger.info(f"Saved CSV to: {file_path}")
-    return file_path
+        logger.info(f"Saved CSV to: {file_path}")
+        return file_path
+    except HTTPError as e:
+        if response.status_code == 503:
+            logger.info("CSV not ready yet (503), retrying...")
+            time.sleep(2)
+
+        logger.error(f"❌ Failed to download: {e}")
+        raise
+
 
 # scrapping function
 def scrape_and_download(city_name, data_type, start_date=None, end_date=None):
     """ Scrapes weather data from NOAA's Daily Summaries portal. """
     driver = None
-    # with create_driver() as driver:
     try:
         driver = init_driver()
         wait = WebDriverWait(driver, 20)
@@ -109,7 +114,7 @@ def scrape_and_download(city_name, data_type, start_date=None, end_date=None):
         # Expand Data Types section
         data_type_section = wait.until(EC.presence_of_element_located((By.ID, "whatInput")))
         data_type_section.clear()
-        data_type_section.send_keys(data_type) # "Average temperature" # id=TVG
+        data_type_section.send_keys(data_type)
 
         # Fill in the 'Where' field
         where_input = element_is_present((By.ID, "whereInput"))
@@ -152,21 +157,57 @@ def scrape_and_download(city_name, data_type, start_date=None, end_date=None):
             logger.debug("Returning error message instead of CSV URL")
             return msg
         else:
-            element = driver.find_element(By.CSS_SELECTOR, ".row.search-result-row.ng-star-inserted h5 a")
+            element = driver.find_element(By.CSS_SELECTOR, ".row.search-result-row.ng-star-inserted h5")
             go_to_element(element)
 
-            wait.until(EC.presence_of_element_located(
-                (By.CSS_SELECTOR, ".row.search-result-row.ng-star-inserted h5 a")
-            ))
-            links = driver.find_elements(By.CSS_SELECTOR, ".row.search-result-row.ng-star-inserted h5 a")
+            page_count = 0
+            max_pages = 3  # limited, no need to retrieve all the data
+            city_match = city_name.split(',')[0].strip().lower()
+            matching_csv_url = None
 
-            # Get the download URL
-            csv_url = links[0].get_attribute("href")
-            logger.info(f"CSV download URL: {csv_url}")
+            while page_count < max_pages:
+            # while True: loop until there are no more pages left
+                wait.until(EC.presence_of_element_located(
+                    (By.CSS_SELECTOR, ".row.search-result-row.ng-star-inserted h5 a")
+                ))
+                csv_links = []
+                links = driver.find_elements(
+                    By.CSS_SELECTOR, ".row.search-result-row.ng-star-inserted h5 a")
+
+                page = driver.find_element(By.CSS_SELECTOR,".row.search-result-row.ng-star-inserted .float-right a ")
+                go_to_element(page)
+
+                # Get the download URL
+                for link in links:
+                    href = link.get_attribute("href")
+                    text = link.text.strip()
+                    csv_links.append({'name': text, 'url': href})
+                    logger.info(f"Found CSV link: {text} -> {href}")
+                    # download_csv(href)
+                    # logger.info(f"CSV downloaded from URL: {href}")
+
+                    if matching_csv_url is None and city_match in text.lower():
+                        matching_csv_url = href
+                        logger.info(f"Matched city: {city_name} in text: {text}")
+
+                try:
+                    next_button =driver.find_element(
+                        By.XPATH, "//li[@aria-label='next' and not(contains(@class, 'disabled'))]/a"
+                    )
+                    driver.execute_script("arguments[0].click();", next_button)
+                    time.sleep(1)
+                    page_count += 1
+                except:
+                    logger.info("No more pages.")
+                    break
+
+            logger.info(f"Total CSV links found: {len(csv_links)}")
+
+            csv_url = matching_csv_url if matching_csv_url else csv_links[0]['url']
+            logger.info(f"URL to download CSV : {csv_url}")
 
             # Download and save csv file
             download_csv(csv_url)
-            driver.quit()
 
             return csv_url
 
