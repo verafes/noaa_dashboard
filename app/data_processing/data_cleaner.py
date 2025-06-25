@@ -10,7 +10,7 @@ input_dir=RAW_DATA_DIR
 output_dir=PROCESSED_DATA_DIR
 
 
-def list_csv_files():
+def list_csv_files(input_dir):
     """Return a list of CSV file paths in the directory."""
     csv_files = glob.glob(os.path.join(input_dir, "*.csv"))
     if not csv_files:
@@ -160,13 +160,13 @@ def clean_all_csv_files(input_dir, output_dir):
 if __name__ == "__main__":
     import sys
 
-    # csv_files = list_csv_files()
-    # output_path = os.path.join(RAW_DATA_DIR, "csv_file_list.txt")
-    # write_file_list(csv_files, output_path)
+    csv_files = list_csv_files(input_dir)
+    output_path = os.path.join(RAW_DATA_DIR, "csv_file_list.txt")
+    write_file_list(csv_files, output_path)
 
-    # clean_all_csv_files(RAW_DATA_DIR, PROCESSED_DATA_DIR)
-    file_path = sys.argv[1]
-    clean_single_csv(file_path)
+    clean_all_csv_files(RAW_DATA_DIR, PROCESSED_DATA_DIR)
+    # file_path = sys.argv[1]
+    # clean_single_csv(file_path)
 
     # file_pass = './data/raw/USW00094728.csv'
     # py -m app.data_processing.data_cleaner data/raw/US1CALA0090.csv

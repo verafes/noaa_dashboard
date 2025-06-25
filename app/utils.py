@@ -3,6 +3,9 @@ import pandas as pd
 from dash import html
 import plotly.graph_objects as go
 import copy
+import geonamescache
+import re
+
 from .logger import logger
 
 
@@ -202,3 +205,39 @@ def get_latest_csv_filename() -> str:
     else:
         logger.info(f"[FILE] latest_download.txt not found.")
         raise FileNotFoundError("latest_download.txt not found.")
+
+# special name-to-city mapping
+SPECIAL_CITY_EXCEPTIONS = {
+    "JFK INTERNATIONAL AIRPORT": "NEW YORK",
+    "NEWARK LIBERTY INTERNATIONAL AIRPORT": "NEWARK",
+    "NY CITY CENTRAL PARK": "NEW YORK",
+}
+_gc = geonamescache.GeonamesCache()
+_us_cities = _gc.get_cities()
+US_CITY_NAMES = sorted(
+    {info['name'].upper() for info in _us_cities.values() if info['countrycode'] == 'US'},
+    key=len,
+    reverse=True
+)
+
+def find_city_in_name(station_name, city_names=US_CITY_NAMES, exceptions=SPECIAL_CITY_EXCEPTIONS):
+    """
+    Extract a city name from the station_name string.
+    """
+    name_upper = station_name.upper()
+    sorted_city_names = sorted(city_names, key=len, reverse=True)
+
+    if exceptions:
+        for exc_key, exc_val in exceptions.items():
+            if exc_key in name_upper:
+                return exc_val
+
+    tokens = re.findall(r'\b[\w\s]+\b', name_upper)
+    joined_station_name = " ".join(tokens)
+
+    for city in sorted_city_names:
+        pattern = rf'\b{re.escape(city)}\b'
+        if re.search(pattern, joined_station_name):
+            return city
+
+    return None
