@@ -2,12 +2,14 @@ import sqlite3
 import pandas as pd
 import os
 
-from app.data_processing.data_cleaner import list_csv_files, write_file_list
-from app.utils import PROJECT_ROOT, PROCESSED_DATA_DIR, find_city_in_name
+from app.data_processing.data_cleaner import list_csv_files, write_file_list, clean_single_csv
+from app.utils import PROJECT_ROOT, RAW_DATA_DIR, PROCESSED_DATA_DIR, find_city_in_name, get_latest_csv_filename, \
+    get_latest_csv_full_path
 from app.logger import logger
 
-input_folder = PROCESSED_DATA_DIR
-logger.info(f"Input folder: {input_folder}")
+input_dir = RAW_DATA_DIR
+output_dir = PROCESSED_DATA_DIR
+logger.info(f"Input folder: {input_dir}")
 
 # DB location
 DB_DIR = os.path.join(os.path.dirname(os.path.realpath(__file__)), "../db")
@@ -25,18 +27,21 @@ optional_cols = ['TAVG', 'TMIN', 'TMAX', 'WT16', 'SNOW', 'ACMH', 'WSFG',
                  'PRCP', 'RHAV', 'TSUN', 'WT08', 'WT01', 'WT02']
 keep_cols = base_cols + optional_cols
 
-# Ensure DB directory exists ===
-os.makedirs(DB_DIR, exist_ok=True)
+# Get all cleaned CSV files if multiple
+# csv_files = list_csv_files(PROCESSED_DATA_DIR) # get list of cleaned files
+# logger.info(csv_files)
 
-# Get all cleaned CSV files
-csv_files = list_csv_files()
-logger.info(csv_files)
-write_file_list(csv_files, os.path.join(DB_DIR, "csv_file_list.txt"))
-logger.info("csv_file_list.txt")
+def clean_latest_csv_file(filename) -> str:
+    """Get latest downloaded CSV filename, clean it, and return the filename."""
+    full_path = os.path.join(RAW_DATA_DIR, filename)
+    clean_single_csv(full_path)
+    return filename
 
-if not csv_files:
-    logger("No CSV files to process.")
-    exit(0)
+def get_cleaned_csv_files(filename: str) -> list[str]:
+    """Return full path to cleaned file(s) based on filename."""
+    cleaned_path = os.path.join(PROCESSED_DATA_DIR, filename)
+    return [cleaned_path] if os.path.exists(cleaned_path) else []
+
 
 schema = """
 CREATE TABLE IF NOT EXISTS weather_data (
@@ -49,44 +54,60 @@ CREATE TABLE IF NOT EXISTS weather_data (
 """
 
 # Connect to SQLite DB and create table
-with sqlite3.connect(DB_PATH) as conn:
-    cursor = conn.cursor()
+def import_csv_to_db(csv_path: str = None) -> tuple[bool, str]:
+    """
+    Import data from given cleaned CSV file path into SQLite DB.
+    Returns:
+        (success: bool, message: str)
+    """
+    try:
+        # Ensure DB directory exists
+        os.makedirs(DB_DIR, exist_ok=True)
 
-    cursor.execute(f"DROP TABLE IF EXISTS {TABLE_NAME}")
-    logger.info(f"Dropped table {TABLE_NAME}")
-    cursor.execute(schema)
-    logger.info(f"Created table {TABLE_NAME}")
+        # get latest raw csv, clean and save
+        # if csv_path is None:
+        #     latest = get_latest_csv_filename()
+        #     latest_csv_filename = clean_latest_csv_file(latest)
+        #     csv_files = get_cleaned_csv_files(latest_csv_filename)
+        #     logger.info(csv_files)
+        # else:
+        #     csv_files = [csv_path]
+        # logger.info(f"CSV files to import: {csv_files}")
 
+        csv_files = [csv_path] #omportant
 
-    conn.commit()
-    logger.info(f"Table '{TABLE_NAME}' created.")
+        if not csv_files:
+            msg = "No CSV files to process."
+            logger.info(msg)
+            return False, msg
 
-    # Insert data from each CSV
-    for csv_file in csv_files:
-        try:
-            df = pd.read_csv(csv_file)
+        with sqlite3.connect(DB_PATH) as conn:
+            cursor = conn.cursor()
+            cursor.execute(schema)
+            logger.info(f"Ensured table {TABLE_NAME} exists.")
 
-            # Add missing optional columns as None
-            for col in keep_cols:
-                if col not in df.columns:
-                    df[col] = None
+            # Insert data from each CSV
+            for csv_file in csv_files:
+                logger.info(f"Importing file: {csv_file}")
+                df = pd.read_csv(csv_file)
 
-            df = df[keep_cols]  # Ensure column order
+                for col in keep_cols:
+                    if col not in df.columns:
+                        df[col] = None
 
-            # Convert DataFrame to list of tuples
-            rows = df.itertuples(index=False, name=None)
+                df = df[keep_cols]
+                rows = df.itertuples(index=False, name=None)
 
-            # Prepare insert statement
-            placeholders = ', '.join('?' for _ in keep_cols)
-            insert_stmt = f"INSERT INTO {TABLE_NAME} ({', '.join(keep_cols)}) VALUES ({placeholders})"
+                placeholders = ', '.join('?' for _ in keep_cols)
+                insert_stmt = f"INSERT INTO {TABLE_NAME} ({', '.join(keep_cols)}) VALUES ({placeholders})"
 
-            cursor.executemany(insert_stmt, rows)
-            logger.info(f"Inserted {df.shape[0]} rows from {os.path.basename(csv_file)}")
-        except Exception as e:
-            logger.info(f"Error processing {csv_file}: {e}")
+                cursor.executemany(insert_stmt, rows)
+                logger.info(f"Inserted {df.shape[0]} rows from {os.path.basename(csv_file)}")
 
-    conn.commit()
-    logger.info(f"All data loaded into '{TABLE_NAME}' successfully.")
+            conn.commit()
+            logger.info(f"All data loaded into '{TABLE_NAME}' successfully.")
 
-    logger.info("Populating CITY_NAME column in the DB...")
-
+        return True, f"Successfully imported {df.shape[0]} rows."
+    except Exception as e:
+        logger.error(f"Failed to import CSV to DB: {e}")
+        return False, f"Import failed: {e}"

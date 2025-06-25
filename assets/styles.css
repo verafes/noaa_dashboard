@@ -79,13 +79,16 @@ body {
     height: 200px;
     overflow-y: scroll;
 }
-#submit-button {
+#submit-button, #visualize-button {
     background-color: #4CAF50;
     color: white;
 }
 
-#download-button {
+#download-button, #clean-button {
     border: 1px solid black;
+}
+#import-button {
+    background-color: #C99A5AFF;
 }
 
 .Button {

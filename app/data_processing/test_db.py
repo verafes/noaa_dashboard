@@ -18,6 +18,11 @@ with sqlite3.connect(DB_PATH) as conn:
     tables = cursor.fetchall()
     print(f"Tables: {tables}")
 
+    # Get total rows in table
+    cursor.execute(f"SELECT COUNT(*) FROM {TABLE_NAME}")
+    row_count = cursor.fetchone()[0]
+    logger.info(f"Total rows in table '{TABLE_NAME}': {row_count}")
+
     # Show first 5 rows from the weather_data table
     cursor.execute("SELECT * FROM weather_data LIMIT 5;")
     rows = cursor.fetchall()
@@ -25,23 +30,22 @@ with sqlite3.connect(DB_PATH) as conn:
         print(row)
 
     # Extract column names
-    column_names = [description[0] for description in cursor.description]
-    print("Columns:")
-    print([desc[0] for desc in
-           sqlite3.connect("../db/noaa_weather.db").cursor().execute("SELECT * FROM weather_data LIMIT 1").description])
+    cursor.execute(f"SELECT * FROM {TABLE_NAME} LIMIT 1")
+    column_names = [desc[0] for desc in cursor.description]
+    logger.info(f"Columns in '{TABLE_NAME}': {column_names}")
 
+    # stations list with data
     query = """
     SELECT DISTINCT STATION, LATITUDE, LONGITUDE, ELEVATION, NAME, TAVG, TMIN, TMAX
     FROM weather_data
     """
     cursor.execute(query)
     results = cursor.fetchall()
-
-    # Log results
     for row in results:
         stations_list.append(row)
     # print(f"stations_list: {stations_list}" )
 
+    #
     query = """
         SELECT DISTINCT STATION, NAME
         FROM weather_data
@@ -58,7 +62,6 @@ with sqlite3.connect(DB_PATH) as conn:
 def extract_city_state(name):
     parts = name.split(',')
     if len(parts) > 1:
-        # Usually the second part is "State US"
         return parts[1].strip()
     return None
 
@@ -76,7 +79,6 @@ def extract_city_advanced(name):
     words = first_part.split()
     stop_words = {"UNIVERSI", "UNIVERSITY", "AIRPORT", "INTERNATIONAL", "STATION", "FIELD", "MIDWAY", "PARK", "RIVERSIDE", "STATE"}
 
-    # Keep words until you meet a stop word
     city_words = []
     for w in words:
         if w.upper() in stop_words:
@@ -84,7 +86,20 @@ def extract_city_advanced(name):
         city_words.append(w)
     return " ".join(city_words)
 
+def list_station_city_matches():
+    """Match station names to cities and log the results."""
+    match_count = 0
+    match_cities = []
 
-for name in stations_str_list:
-    city = find_city_in_name(name, US_CITY_NAMES, exceptions=SPECIAL_CITY_EXCEPTIONS)
-    logger.info(f"Station Name: {name} -> Matched City: {city}")
+    for name in stations_str_list:
+        city = find_city_in_name(name, US_CITY_NAMES, exceptions=SPECIAL_CITY_EXCEPTIONS)
+        logger.info(f"Station Name: {name} -> Matched City: {city}")
+        if city:
+            match_count += 1
+
+    matched = sum(1 for _, city in match_cities if city)
+    logger.info(f"Matched {matched} out of {len(stations_str_list)} stations.")
+
+    return match_cities
+
+station_city_pairs = list_station_city_matches()

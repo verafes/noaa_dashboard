@@ -198,13 +198,19 @@ def format_status_message(msg, msg_type="info"):
     )
 
 def get_latest_csv_filename() -> str:
-    latest_file_path = os.path.join("data", "latest_download.txt")
+    latest_file_path = os.path.join(PROJECT_ROOT, "data", "latest_download.txt")
     if os.path.exists(latest_file_path):
         with open(latest_file_path, "r") as f:
             return f.read().strip()
     else:
         logger.info(f"[FILE] latest_download.txt not found.")
         raise FileNotFoundError("latest_download.txt not found.")
+
+def get_latest_csv_full_path() -> str:
+    filename = get_latest_csv_filename()
+    full_path = os.path.join(RAW_DATA_DIR, filename)
+    logger.info(f"[FILE] Full path to latest CSV: {full_path}")
+    return full_path
 
 # special name-to-city mapping
 SPECIAL_CITY_EXCEPTIONS = {

@@ -74,10 +74,15 @@ def create_layout():
             ]),
             html.Br(),
             # buttons
-            html.Button('Download Data', id='download-button', className='Button', n_clicks=0),
-            html.Button('Submit', id='submit-button', className='Button', n_clicks=0),
-            html.Button('Clear/Reset', id='reset-button', className='Button', n_clicks=0,
-               style={'background': '#ff4444', 'color': 'white'}),
+            html.Div([
+                html.Button('Download Data', id='download-button', className='Button', n_clicks=0),
+                html.Button('Submit', id='submit-button', className='Button', n_clicks=0),
+                html.Button('Clear/Reset Form', id='reset-button', className='Button', n_clicks=0,
+                   style={'background': '#ff4444', 'color': 'white'}),
+                html.Button('Clean Data', id='clean-button', className='Button', n_clicks=0),
+                html.Button('Import to DB', id='import-button', className='Button', n_clicks=0),
+                html.Button('Visualize Data', id='visualize-button', className='Button', n_clicks=0),
+            ], style={'display': 'flex', 'flexWrap': 'wrap', 'gap': '10px', 'marginTop': '10px'}),
             html.Br(),
             html.Label(
         'Note: After submitting form, please wait while getting data and building visualization',
