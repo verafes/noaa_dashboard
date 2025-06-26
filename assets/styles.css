@@ -15,6 +15,10 @@ body {
     margin: 10px 0;
 }
 
+h2 {
+    margin: 0 0 0.5rem 0;
+}
+
 #city-input {
     width: 28rem;
     padding: 10px 20px 10px 10px;
@@ -92,7 +96,7 @@ body {
 }
 
 .Button {
-    margin: 10px 20px 20px 0;
+    margin: 10px 20px 10px 0;
     padding: 10px 20px;
     border-radius: 5px;
     border: none;
@@ -108,4 +112,13 @@ body {
     display: block;
     width: 100%;
     text-align: center;
+}
+
+#left-form-wrapper > * {
+    margin-top: 5px \;
+    margin-bottom: 4px !important;
+}
+
+.date-label {
+    margin-top: 10px !important;
 }

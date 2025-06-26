@@ -3,8 +3,7 @@ import pandas as pd
 import os
 
 from app.data_processing.data_cleaner import list_csv_files, write_file_list, clean_single_csv
-from app.utils import PROJECT_ROOT, RAW_DATA_DIR, PROCESSED_DATA_DIR, find_city_in_name, get_latest_csv_filename, \
-    get_latest_csv_full_path
+from app.utils import PROJECT_ROOT, RAW_DATA_DIR, PROCESSED_DATA_DIR, get_latest_csv_filename
 from app.logger import logger
 
 input_dir = RAW_DATA_DIR
@@ -42,6 +41,16 @@ def get_cleaned_csv_files(filename: str) -> list[str]:
     cleaned_path = os.path.join(PROCESSED_DATA_DIR, filename)
     return [cleaned_path] if os.path.exists(cleaned_path) else []
 
+# get latest raw csv, clean and save
+csv_path = None
+if csv_path is None:
+    latest = get_latest_csv_filename()
+    latest_csv_filename = clean_latest_csv_file(latest)
+    csv_files = get_cleaned_csv_files(latest_csv_filename)
+    logger.info(csv_files)
+else:
+    csv_files = [csv_path]
+logger.info(f"CSV files to import: {csv_files}")
 
 schema = """
 CREATE TABLE IF NOT EXISTS weather_data (
@@ -64,17 +73,7 @@ def import_csv_to_db(csv_path: str = None) -> tuple[bool, str]:
         # Ensure DB directory exists
         os.makedirs(DB_DIR, exist_ok=True)
 
-        # get latest raw csv, clean and save
-        # if csv_path is None:
-        #     latest = get_latest_csv_filename()
-        #     latest_csv_filename = clean_latest_csv_file(latest)
-        #     csv_files = get_cleaned_csv_files(latest_csv_filename)
-        #     logger.info(csv_files)
-        # else:
-        #     csv_files = [csv_path]
-        # logger.info(f"CSV files to import: {csv_files}")
-
-        csv_files = [csv_path] #omportant
+        csv_files = [csv_path] #important
 
         if not csv_files:
             msg = "No CSV files to process."

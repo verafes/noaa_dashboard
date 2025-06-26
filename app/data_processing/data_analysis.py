@@ -1,11 +1,10 @@
-import sqlite3
-import pandas as pd
 import os
 import io
+import sqlite3
+import pandas as pd
 
 from matplotlib import pyplot as plt
 
-from app.utils import find_city_in_name, US_CITY_NAMES, SPECIAL_CITY_EXCEPTIONS
 from app.logger import logger
 
 # DB location
@@ -17,6 +16,14 @@ TABLE_NAME = "weather_data"
 # Ensure the DB directory exists
 os.makedirs(DB_DIR, exist_ok=True)
 logger.info(f"Database directory ensured: {DB_DIR}")
+
+label_map = {
+        'TAVG': 'Average Temperature',
+        'TMAX': 'Maximum Temperature',
+        'TMIN': 'Minimum Temperature',
+        'PRCP': 'Precipitation',
+        'SNOW': 'Snowfall'
+    }
 
 def load_data_from_db(db_path, table_name):
     conn = sqlite3.connect(db_path)
@@ -164,21 +171,34 @@ def plot_snowfall_pie(df_grouped, year, min_threshold=0.01):
     if small_slices_sum > 0:
         large_slices['Others'] = small_slices_sum
 
-    plt.figure(figsize=(8, 8))
-    wedges, texts, autotexts = plt.pie(
+    fig, ax = plt.subplots(figsize=(16, 8))
+    wedges, texts, autotexts = ax.pie(
         large_slices,
         labels=None,
         autopct='%1.1f%%',
-        startangle=140,
+        startangle=200,
         pctdistance=0.85,
-        textprops={'fontsize': 9}
+        textprops={'fontsize': 9},
+        wedgeprops={'edgecolor': 'white', 'linewidth': 0.5},
+        radius=1.3
     )
 
-    centre_circle = plt.Circle((0, 0), 0.70, fc='white')
-    plt.gca().add_artist(centre_circle)
-    plt.title(f"Snowfall Contribution by Station in {year}")
-    plt.legend(large_slices.index, title="Stations", bbox_to_anchor=(1, 0.5), loc='center left')
-    plt.tight_layout()
+    centre_circle = plt.Circle((0, 0), 0.85, fc='white')
+    ax.add_artist(centre_circle)
+    ax.set_title(f"Snowfall Contribution by Station in {year}")
+    ax.axis('equal')
+
+    ax.legend(
+        wedges,
+        large_slices.index,
+        title="Stations",
+        loc='center left',
+        bbox_to_anchor=(1, 0.5),
+        fontsize=9,
+        title_fontsize=10
+    )
+
+    plt.subplots_adjust(left=0.05, right=0.7, top=0.9, bottom=0.1)
     plt.show()
 
 def plot_snowfall_bar(df_grouped, year):
@@ -201,18 +221,71 @@ def plot_snowfall_bar(df_grouped, year):
     plt.show()
 
 def plot_temperature_boxplot(df_grouped, temp_col='TAVG'):
-    ax = df_grouped.boxplot(column=temp_col, by='YEAR_PERIOD', grid=False, rot=90, patch_artist=True)
-    ax.set_title(f'Distribution of {temp_col} Over Years')
+    fig, ax = plt.subplots(figsize=(20, 6))
+    readable_label = label_map.get(temp_col, temp_col)
+    df_grouped.boxplot(
+        column=temp_col,
+        by='YEAR_PERIOD',
+        grid=False,
+        rot=90,
+        patch_artist=True,
+        ax=ax
+    )
+    ax.set_title(f'Distribution of {readable_label} Over Years')
     plt.suptitle('')
     ax.set_xlabel('Year')
-    ax.set_ylabel(f'{temp_col} Temperature (°F)')
+    ax.set_ylabel(f'{readable_label} (°F)')
     plt.tight_layout()
     plt.show()
 
+def show_max_temp_trends(df):
+    df_agg = aggregate_by_station_and_time(df, date_freq='Y')
+    sample_stations = df_agg['NAME'].unique()[:20]
+    logger.info(f"Plotting max temperature trends for stations: {sample_stations}")
+    plot_max_temperature_trends(df_agg, sample_stations)
+
+def explore_weather_by_station(df, num):
+    df_agg = aggregate_weather_conditions(df, date_freq='Y')
+    stations = df_agg['NAME'].unique()[:num]
+    for station in stations:
+        print(f"Plotting weather data for station: {station}")
+        plot_temperature(df_agg, station)
+        plot_precipitation_and_snow(df_agg, station)
+        plot_weather_events(df_agg, station)
+
+def show_temp_boxplot(df):
+    df_agg = aggregate_weather_conditions(df, date_freq='Y')
+    plot_temperature_boxplot(df_agg, temp_col='TAVG')
+
+def menu(df_weather):
+    while True:
+        print("\n====== NOAA Weather Data Menu ======")
+        print("1 - Show loaded weather data info")
+        print("2 - Plot max temperature trends")
+        print("3 - Show snowfall pie & bar chart for year")
+        print("4 - Explore temperature, PRCP, and WT per station")
+        print("5 - Boxplot: Avg temperature distribution over years")
+        print("0 - Exit")
+        choice = input("Choose an option: ").strip()
+
+        if choice == '1':
+            show_max_temp_trends(df_weather)
+        elif choice == '2':
+            plot_snowfall_pie(df_weather)
+        elif choice == '3':
+            plot_snowfall_bar(df_weather)
+        elif choice == '4':
+            explore_weather_by_station(df_weather)
+        elif choice == '5':
+            plot_temperature_boxplot(df_weather)
+        elif choice == '0':
+            print("Exiting. Bye!")
+            break
+        else:
+            print("Invalid option. Try again.")
+
 if __name__ == "__main__":
     logger.info("Starting weather data analysis...")
-
-    logger.info("Starting weather data analysis (station-based)...")
 
     df_weather = load_data_from_db(DB_PATH, TABLE_NAME)
     logger.info(f"Loaded weather data: {len(df_weather)} records")
@@ -238,12 +311,5 @@ if __name__ == "__main__":
 
     # Boxplot for average temp distribution over years
     plot_temperature_boxplot(df_agg, temp_col='TAVG')
-
-    stations = df_agg['NAME'].unique()[:3]
-    for station in stations:
-        print(f"Plotting weather data for station: {station}")
-        plot_temperature(df_agg, station)
-        plot_precipitation_and_snow(df_agg, station)
-        plot_weather_events(df_agg, station)
 
     logger.info("Script completed.")

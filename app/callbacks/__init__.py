@@ -1,4 +1,4 @@
-from . import calendar, reset, fetch_data, visualization, download, clean_data, import_data_to_db
+from . import calendar, reset, fetch_data, visualization, download, clean_data, import_data_to_db, analysis
 
 
 def register_all_callbacks(app, on_import_click=None):
@@ -9,3 +9,4 @@ def register_all_callbacks(app, on_import_click=None):
     download.register_callbacks(app)
     clean_data.register_callbacks(app)
     import_data_to_db.register_callbacks(app)
+    analysis.register_callbacks(app)

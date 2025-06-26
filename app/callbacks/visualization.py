@@ -1,15 +1,14 @@
-# Handles creating dash_app graph
+# Handles creating dash_app graphs (data before analysis)
 
 import dash
-from dash import html, Input, Output, State, no_update
+from dash import Input, Output, State
 
 import pandas as pd
 import numpy as np
 import plotly.express as px
 
-from ..utils import get_data_type_label, format_status_message
+from ..utils import get_data_type_label, create_empty_figure, get_vis_config
 from ..logger import logger
-from ..utils import create_empty_figure, get_vis_config
 
 
 # Callback to update visualization controls
