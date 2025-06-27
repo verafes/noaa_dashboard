@@ -7,7 +7,7 @@ import pandas as pd
 import numpy as np
 import plotly.express as px
 
-from ..utils import get_data_type_label, create_empty_figure, get_vis_config
+from ..utils import get_data_type_label, create_empty_figure, get_vis_config, is_valid_column
 from ..logger import logger
 
 
@@ -131,6 +131,16 @@ def register_callbacks(app):
             data_type_label = get_data_type_label(data_type)
             logger.info(f"Data type label: {data_type_label}")
 
+            y_cols = config.get('y_cols', [])
+            valid_y_cols = [col for col in y_cols if is_valid_column(filtered, col)]
+            if not valid_y_cols:
+                msg = f"No valid data found for {get_data_type_label(data_type)}"
+                logger.warning(msg)
+                return create_empty_figure(msg), create_empty_figure(msg)
+
+            # y_col = config['y_cols'][0]
+            y_col = valid_y_cols[0]
+
             if data_type in ['TMAX', 'TMIN', 'TAVG']:  # Temperature
                 temp_y_cols = [col for col in ['TMIN', 'TAVG', 'TMAX'] if col in filtered.columns]
                 logger.info(f"Temperature columns used for plot: {temp_y_cols}")
@@ -163,29 +173,59 @@ def register_callbacks(app):
                     y='Rain',
                     title=f"Rain Days - {selected_station}",
                     labels={'Rain': 'Rain occurred'},
+                    color_discrete_sequence=config['colors']
+                )
+                weather_fig.update_traces(
+                    marker=dict(
+                        color='#1E90FF',
+                        line=dict(width=0),
+                        opacity=1),
+                    selector=dict(type='bar')
                 )
                 weather_fig.update_yaxes(range=[0, 1.1], showticklabels=False)
 
-            elif data_type == 'SNOW':  # Snow occurrence
-                filtered['Snow'] = filtered['WT08'].apply(lambda x: 1 if x > 0 else 0)
+            elif data_type == 'Snow':  # Snow occurrence
+                filtered['Snow'] = filtered['SNOW'].apply(lambda x: 1 if x > 0 else 0)
                 weather_fig = px.bar(
                     filtered[filtered['Snow'] > 0],
                     x=date_col,
                     y='Snow',
                     title=f"Snow Days - {selected_station}",
                     labels={'Snow': 'Snowfall occurred'},
-                    color_discrete_sequence=config['colors']
+                )
+                weather_fig.update_traces(
+                    marker=dict(
+                        color='#4682B4',
+                        line=dict(width=0),
+                        opacity=1
+                    ),
+                    selector=dict(type='bar')
+                )
+                weather_fig.update_yaxes(range=[0, 1.1], showticklabels=False)
+            elif data_type == 'WT08':  # Smoke or haze
+                filtered['Smoke'] = filtered['WT08'].apply(lambda x: 1 if x > 0 else 0)
+                weather_fig = px.bar(
+                    filtered[filtered['Smoke'] > 0],
+                    x=date_col,
+                    y='Smoke',
+                    title=f"Smoke or Haze Days - {selected_station}",
+                    labels={'Smoke': 'Smoke or haze occurred'},
+                )
+                weather_fig.update_traces(
+                    marker=dict(
+                        color='#505050',
+                        opacity=1
+                    ),
+                    selector=dict(type='bar')
                 )
                 weather_fig.update_yaxes(range=[0, 1.1], showticklabels=False)
 
             else:  # Default for other data types
-                if data_type not in filtered.columns:
-                    weather_fig = create_empty_figure(f"No {data_type} data available")
                 if config['chart_type'] == 'line':
                     weather_fig = px.line(
                         filtered,
                         x='DATE',
-                        y=config['y_cols'][0],
+                        y=y_col,
                         title=f"{get_data_type_label(data_type)} Over Time",
                         labels=config['labels'],
                         color_discrete_sequence=config['colors'],
@@ -198,6 +238,13 @@ def register_callbacks(app):
                         title=f"{get_data_type_label(data_type)} Over Time",
                         labels=config['labels'],
                         color_discrete_sequence=config['colors']
+                    )
+                    weather_fig.update_traces(
+                        marker=dict(
+                            color=config['colors'],
+                            line=dict(width=0),
+                            opacity=1),
+                        selector=dict(type='bar')
                     )
                 elif config['chart_type'] == 'scatter':
                     cols = [c for c in config['y_cols'] if c in filtered.columns]
@@ -254,16 +301,18 @@ def register_callbacks(app):
                         )
 
             if 'PRCP' in filtered.columns:
+                # PRCP = Precipitation (tenths of mm)
+                filtered['PRCP_IN'] = filtered['PRCP'] / 10 * 0.03937
                 precip_fig = px.bar(
                     filtered,
                     x=date_col,
-                    y='PRCP',
+                    y='PRCP_IN',
                     title=f"Precipitation - {selected_station}",
-                    labels={'PRCP': 'Precipitation (hundredths of inches)'},
+                    labels={'PRCP_IN': 'Precipitation (inches)'},
                     color_discrete_sequence=config['colors']
                 )
                 precip_fig.update_traces(
-                    marker_color='#001f3f',
+                    marker_color='#003366',
                     marker_line_color='blue',  # Add dark border
                     marker_line_width=0.3,
                     opacity=1  # Full opacity
@@ -279,6 +328,9 @@ def register_callbacks(app):
                     hovermode='x unified',
                     template='plotly_white',
                     margin=dict(l=40, r=40, t=60, b=40)
+                )
+                fig.update_traces(
+                    opacity=1
                 )
 
             logger.info(f"Updated charts for station '{selected_station}' between {start_date} and {end_date}")

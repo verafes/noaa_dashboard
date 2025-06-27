@@ -4,6 +4,7 @@ from dash import html
 import plotly.graph_objects as go
 import copy
 import geonamescache
+from collections import defaultdict
 import re
 
 from .logger import logger
@@ -20,13 +21,13 @@ DATA_TYPES = [
     {'label': 'Average temperature', 'value': 'TAVG'},
     {'label': 'Rain', 'value': 'WT16'},
     {'label': 'Snowfall', 'value': 'Snow'},
+    {'label': 'Fog, ice fog, or freezing fog', 'value': 'WT01'},
     {'label': 'Average cloudiness (midnight-midnight)', 'value': 'ACMH'},
     {'label': 'Average daily wind speed', 'value': 'WSFG'},
     {'label': 'Precipitation', 'value': 'PRCP'},
     {'label': 'Average relative humidity', 'value': 'RHAV'},
     {'label': 'Daily total sunshine', 'value': 'TSUN'},
     {'label': 'Smoke or haze', 'value': 'WT08'},
-    {'label': 'Fog, ice fog, or freezing fog', 'value': 'WT01'},
 ]
 
 
@@ -48,7 +49,7 @@ VIS_CONFIG = {
     },
     # Rain occurrence (weather type 16)
     'WT16': {
-        'chart_type': 'binary',
+        'chart_type': 'line',
         'y_cols': ['WT16'],
         'labels': {'WT16': 'Rain Occurrence'},
         'colors': ['#1E90FF']
@@ -58,7 +59,7 @@ VIS_CONFIG = {
         'chart_type': 'bar',
         'y_cols': ['SNOW'],
         'labels': {'SNOW': 'Snowfall (inches)'},
-        'colors': ['#B0E0E6']  # Light blue
+        'colors': ['#4682B4']
     },
     # Average cloudiness
     'ACMH': {
@@ -83,17 +84,17 @@ VIS_CONFIG = {
     },
     # Daily total sunshine
     'TSUN': {
-        'chart_type': 'bar',
+        'chart_type': 'line',
         'y_cols': ['TSUN'],
         'labels': {'TSUN': 'Sunshine Duration (minutes)'},
         'colors': ['#FFD700']  # Gold
     },
     # Smoke or haze
     'WT08': {
-        'chart_type': 'binary',
+        'chart_type': 'bar',
         'y_cols': ['WT08'],
         'labels': {'WT08': 'Smoke or Haze Occurrence'},
-        'colors': ['#D3D3D3'] # Light gray
+        'colors': ['#505050'] # gray
     },
     # Fog
     'WT01': {
@@ -143,8 +144,25 @@ def create_empty_figure(message):
 
 # Helper Functions
 def get_data_type_label(code):
-    """Convert NOAA code to human-readable label"""
+    """
+    Convert NOAA code to human-readable label.
+    Returns a string like "Unknown (XYZ)" if code is not found in DATA_TYPES.
+    """
     return next((item['label'] for item in DATA_TYPES if item['value'] == code), f"Unknown ({code})")
+
+def get_label_from_value(value):
+    """
+    Returns label for the given data type from DATA_TYPES list
+    Returns the original value if it is not found in DATA_TYPES.
+    """
+    for item in DATA_TYPES:
+        if item['value'] == value:
+            return item['label']
+    return value
+
+def is_valid_column(df: pd.DataFrame, col: str) -> bool:
+    """Check if col exists in df and has any non-NaN values."""
+    return col in df.columns and not df[col].dropna().empty
 
 def validate_dates(start_date, end_date):
     """Ensure dates are in correct format"""
@@ -162,14 +180,6 @@ def validate_inputs(city_name, data_type):
     if data_type not in [item['value'] for item in DATA_TYPES]:
         return False
     return True
-
-def get_label_from_value(value):
-    """Return label for the given data type from DATA_TYPES list"""
-    for item in DATA_TYPES:
-        if item['value'] == value:
-            return item['label']
-    return value
-
 
 def format_status_message(msg, msg_type="info"):
     """Style messages with consistent formatting"""
@@ -217,7 +227,12 @@ SPECIAL_CITY_EXCEPTIONS = {
     "JFK INTERNATIONAL AIRPORT": "NEW YORK",
     "NEWARK LIBERTY INTERNATIONAL AIRPORT": "NEWARK",
     "NY CITY CENTRAL PARK": "NEW YORK",
+    "LOWER ST. ANTHONY FALLS, MN US": "MINNEAPOLIS",
 }
+REVERSED_CITY_PREFS = defaultdict(list)
+for station, city in SPECIAL_CITY_EXCEPTIONS.items():
+    REVERSED_CITY_PREFS[city.upper()].append(station.upper())
+
 _gc = geonamescache.GeonamesCache()
 _us_cities = _gc.get_cities()
 US_CITY_NAMES = sorted(
