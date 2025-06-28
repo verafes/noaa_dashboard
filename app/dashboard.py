@@ -35,7 +35,7 @@ def create_dash_app():
         'content': 'width=device-width, initial-scale=1.0'}],
         serve_locally=True, # !important
         compress=False, # !important
-        assets_ignore='.*\.hot-update\.js',
+        assets_ignore=r'.*\.hot-update\.js',
         include_assets_files=True,
        )
     # Disable all development tools

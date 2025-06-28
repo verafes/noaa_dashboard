@@ -1,3 +1,4 @@
+import dash
 from dash import Input, Output, exceptions
 from ..logger import logger
 
@@ -34,3 +35,32 @@ def register_callbacks(app):
                 {'display': 'none'}  # visualization-container
             )
         raise exceptions.PreventUpdate
+
+    @app.callback(
+        Output('status-container', 'children', allow_duplicate=True),
+        Output('error-container', 'children', allow_duplicate=True),
+        [
+            Input('submit-button', 'n_clicks'),
+            Input('reset-button', 'n_clicks'),
+            Input('import-button', 'n_clicks'),
+            Input('visualize-button', 'n_clicks'),
+            Input('download-button', 'n_clicks'),
+            Input('clean-button', 'n_clicks'),
+        ],
+        prevent_initial_call=True,
+    )
+    def clear_status_on_other_clicks(submit_clicks, reset_clicks, import_clicks, viz_clicks, download_clicks, clean_clicks):
+        ctx = dash.callback_context
+        if not ctx.triggered:
+            raise dash.exceptions.PreventUpdate
+        triggered = ctx.triggered_id
+        if triggered in [
+            'submit-button',
+            'reset-button',
+            'import-button',
+            'visualize-button',
+            'download-button',
+            'clean-button'
+        ]:
+            return "", ""
+        raise dash.exceptions.PreventUpdate

@@ -11,6 +11,7 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.service import Service
+from app.utils import find_city_in_name, REVERSED_CITY_PREFS
 
 from dotenv import load_dotenv
 
@@ -163,7 +164,16 @@ def scrape_and_download(city_name, data_type, start_date=None, end_date=None):
             page_count = 0
             max_pages = 3  # limited, no need to retrieve all the data
             city_match = city_name.split(',')[0].strip().lower()
+            logger.info(f"city_match: {city_match}")
+
+            preferred_stations = [
+                s.lower().split(',', 1)[0].strip()
+                for s in REVERSED_CITY_PREFS.get(city_match.upper(), [])
+            ]
+            logger.info(f"Preferred stations: {preferred_stations}")
+
             matching_csv_url = None
+            preferred_match = None
 
             while page_count < max_pages:
             # while True: loop until there are no more pages left
@@ -186,6 +196,12 @@ def scrape_and_download(city_name, data_type, start_date=None, end_date=None):
                     # download_csv(href)
                     # logger.info(f"CSV downloaded from URL: {href}")
 
+                    # 1) match a preferred station for the city
+                    if preferred_match is None and any(pref in text.lower() for pref in preferred_stations):
+                        matching_csv_url = href
+                        logger.info(f"Matched Preferred station: '{text}' for city: '{city_match}'")
+                        break
+                    # 2) city‐fallback match (only if no preferred yet)
                     if matching_csv_url is None and city_match in text.lower():
                         matching_csv_url = href
                         logger.info(f"Matched city: {city_name} in text: {text}")
