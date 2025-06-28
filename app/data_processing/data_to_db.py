@@ -42,15 +42,17 @@ def get_cleaned_csv_files(filename: str) -> list[str]:
     return [cleaned_path] if os.path.exists(cleaned_path) else []
 
 # get latest raw csv, clean and save
-csv_path = None
-if csv_path is None:
-    latest = get_latest_csv_filename()
-    latest_csv_filename = clean_latest_csv_file(latest)
-    csv_files = get_cleaned_csv_files(latest_csv_filename)
-    logger.info(csv_files)
-else:
-    csv_files = [csv_path]
-logger.info(f"CSV files to import: {csv_files}")
+def prepare_latest_csv_files():
+    csv_path = None
+    if csv_path is None:
+        latest = get_latest_csv_filename()
+        latest_csv_filename = clean_latest_csv_file(latest)
+        csv_files = get_cleaned_csv_files(latest_csv_filename)
+        logger.info(csv_files)
+    else:
+        csv_files = [csv_path]
+    logger.info(f"CSV files to import: {csv_files}")
+    return csv_files
 
 schema = """
 CREATE TABLE IF NOT EXISTS weather_data (
@@ -73,7 +75,13 @@ def import_csv_to_db(csv_path: str = None) -> tuple[bool, str]:
         # Ensure DB directory exists
         os.makedirs(DB_DIR, exist_ok=True)
 
-        csv_files = [csv_path] #important
+        if csv_path is None:
+            latest = get_latest_csv_filename()
+            latest_csv_filename = clean_latest_csv_file(latest)
+            csv_files = get_cleaned_csv_files(latest_csv_filename)
+        else:
+            csv_files = [csv_path] #important
+        logger.info(f"CSV files to import: {csv_files}")
 
         if not csv_files:
             msg = "No CSV files to process."

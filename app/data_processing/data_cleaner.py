@@ -76,6 +76,12 @@ def clean_data(df: pd.DataFrame) -> pd.DataFrame:
         else:
             df['TAVG'] = avg_temp
 
+    # Remove rows with unrealistic temperature values (in Celsius)
+    temp_cols = ['TAVG', 'TMIN', 'TMAX']
+    for col in temp_cols:
+        if col in df.columns:
+            df = df[(df[col].isna()) | ((df[col] >= -500) & (df[col] <= 512))]
+
     # Convert all non-base columns to numeric
     numeric_cols = [col for col in df.columns if col not in base_cols]
     for col in numeric_cols:
@@ -157,17 +163,20 @@ def clean_all_csv_files(input_dir, output_dir):
         else:
             logger.info(f"Skipping file (empty or failed to clean): {file_path}")
 
-if __name__ == "__main__":
-    import sys
-
-    csv_files = list_csv_files(input_dir)
-    output_path = os.path.join(RAW_DATA_DIR, "csv_file_list.txt")
-    write_file_list(csv_files, output_path)
-
-    clean_all_csv_files(RAW_DATA_DIR, PROCESSED_DATA_DIR)
-    # file_path = sys.argv[1]
-    # clean_single_csv(file_path)
-
-    # file_pass = './data/raw/USW00094728.csv'
-    # py -m app.data_processing.data_cleaner data/raw/US1CALA0090.csv
-    # py -m app.data_processing.data_cleaner USC00282644.csv
+# -------------------------
+# EXAMPLE USAGE (for reference, NOT executed)
+#     import sys
+# examples to use
+# csv_files = list_csv_files(input_dir)
+# output_path = os.path.join(RAW_DATA_DIR, "csv_file_list.txt")
+# write_file_list(csv_files, output_path)
+#
+# clean_all_csv_files(RAW_DATA_DIR, PROCESSED_DATA_DIR)
+# file_path = sys.argv[1]
+# file_pass = './data/raw/USW00094728.csv' # example filename
+# clean_single_csv(file_path)
+#
+# Command line examples:
+# py -m app.data_processing.data_cleaner data/raw/US1CALA0090.csv
+# py -m app.data_processing.data_cleaner USC00282644.csv
+# -------------------------
