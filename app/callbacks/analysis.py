@@ -4,7 +4,7 @@ from dash.exceptions import PreventUpdate
 from dash import html, Input, Output, State
 
 import matplotlib
-matplotlib.use('Agg')
+matplotlib.use('TkAgg')
 from matplotlib import pyplot as plt
 import threading
 import pandas as pd
@@ -17,10 +17,11 @@ from app.data_processing.data_analysis import (
     aggregate_by_station_and_time,
     plot_max_temperature_trends,
     plot_temperature_boxplot,
-    plot_snowfall_pie,
-    plot_snowfall_bar,
-    plot_snowfall_trends,
-    plot_weather_events
+    plot_snowfall_pie, plot_snowfall_bar,
+    plot_snowfall_trends, plot_station_trends,
+    label_map, plot_yearly_distributions,
+    plot_weather_correlation_heatmap, prepare_event_flags,
+    plot_aggregated_weather_event_frequencies
 )
 
 from app.logger import logger
@@ -57,12 +58,8 @@ def register_callbacks(app):
                 df_agg = aggregate_weather_conditions(df_weather)
                 logger.info(f"Aggregated data shape: {df_agg.shape}")
 
-
-                if city_name:
-                    df_agg = df_agg[df_agg['NAME'].str.contains(city_name, case=False)]
-                    if df_agg.empty:
-                        print(f"No data found for city: {city_name}")
-                        return
+                logger.info(f"Stations in filtered data: {df_agg['NAME'].nunique()}")
+                logger.info(f"Years in filtered data: {df_agg['YEAR_PERIOD'].dt.year.unique()}")
 
                 if start_date and end_date:
                     start = pd.to_datetime(start_date)
@@ -73,7 +70,7 @@ def register_callbacks(app):
                         ]
 
                 plt.switch_backend('TkAgg')  # or 'Qt5Agg'
-                # plt.switch_backend('Qt5Agg')
+
                 year = pd.to_datetime(start_date).year if start_date else datetime.now().year
 
                 # Generate selected plot
@@ -91,9 +88,29 @@ def register_callbacks(app):
                     df_agg_st = aggregate_by_station_and_time(df_weather, date_freq='Y')
                     stations = df_agg_st['NAME'].unique()[:20]
                     plot_snowfall_trends(df_agg_st, stations)
+                elif selected_chart == "Sunshine Trends":
+                    conditions = ['TSUN', 'WSFG', 'RHAV']
+                    plot_station_trends(df_weather, 'TSUN', label_map)
+                elif selected_chart == "Weather Events":
+                    df_weather['YEAR'] = df_weather['DATE'].dt.year
+                    conditions = ['WT01', 'WT08', 'WT16', 'WSFG']
+                    plot_aggregated_weather_event_frequencies(
+                        prepare_event_flags(df_weather, conditions),
+                        conditions,
+                        label_map
+                    )
+                elif selected_chart == "Yearly Distributions":
+                    conditions = ['TAVG', 'PRCP', 'SNOW']
+                    plot_yearly_distributions(df_weather, conditions, label_map)
+                elif selected_chart == "Correlation Heatmap":
+                    conditions = [
+                        'TMIN', 'TAVG', 'TMAX', 'PRCP', 'SNOW', 'TSUN',
+                        'ACMH', 'WSFG', 'RHAV', 'WT01', 'WT08', 'WT16'
+                    ]
+                    plot_weather_correlation_heatmap(df_weather, conditions)
 
                 plt.show(block=True)
-                # app_qt.exec_()
+
             except Exception as e:
                 print(f"Error during visualization: {str(e)}")
             finally:

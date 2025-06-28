@@ -88,7 +88,7 @@ def create_layout():
                 html.Label([
                     'Note: After submitting form, please wait while the data is retrieved and the visualization is generated.',
                     html.Br(),html.Br(),
-                    'NOAA daily summaries data is unavailable every Thursday from 12:00 PM to Friday 12:00 PM due to scheduled maintenance.'
+                    'NOAA daily summaries data might be unavailable (usially Thursday from 12:00 PM to Friday 12:00 PM) due to scheduled maintenance.'
                 ], style={'margin': '10px 0'}),
                 ], id='left-form-wrapper', style={'display': 'flex', 'flexDirection': 'column'}),
             ],
@@ -104,12 +104,16 @@ def create_layout():
                         {'label': 'Avf Temperature over Years (Boxplot)', 'value': 'Temp Boxplot'},
                         {'label': 'Snowfall Contribution by Station (Pie)', 'value': 'Snowfall Pie'},
                         {'label': 'Total Snowfall by Station (Bar)', 'value': 'Snowfall Bar'},
-                        {'label': 'Snowfall Max Trends (Line chart)', 'value': 'Snowfall Trends'},
+                        {'label': 'Snowfall Max Snowfalls Trends (Line chart)', 'value': 'Snowfall Trends'},
+                        {'label': 'Yearly Sunshine Duration (Line chart)', 'value': 'Annual Averages'},
+                        {'label': 'Event Frequencies Fog, Smoke, Rain, Wind (Bar)', 'value': 'Weather Events'},
+                        {'label': 'Yearly Distributions Temp, Precip, Snow (Boxplot)', 'value': 'Yearly Distributions'},
+                        {'label': 'Correlation Heatmap', 'value': 'Correlation Heatmap'},
                     ],
                     value='Max Temp Trends',
                     clearable=False,
                     style={'minWidth': '250px'},
-                    maxHeight=300
+                    maxHeight=550
                 ),
                 html.Button('Visualize Data', id='visualize-button',
                             className='Button', n_clicks=0, style={'marginTop': '20px', 'marginBottom': '20px'}),
