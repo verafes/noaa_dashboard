@@ -11,14 +11,14 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.service import Service
-from app.utils import find_city_in_name, REVERSED_CITY_PREFS
+from app.utils import REVERSED_CITY_PREFS, IS_RENDER, RAW_DATA_DIR
 
 from dotenv import load_dotenv
 
 
 # Configuration
 load_dotenv()
-DOWNLOAD_DIR = os.path.abspath("data/raw")
+DOWNLOAD_DIR = RAW_DATA_DIR
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 url = os.getenv("NOAA_URL")
 
@@ -33,18 +33,19 @@ def init_driver():
             pass
     if driver is None:
         chrome_options = Options()
-        chrome_options.add_argument("--incognito")
+        if IS_RENDER:
+            chrome_options.add_argument("--headless=new")
+        else:
+            chrome_options.add_argument("--incognito")
         chrome_options.add_experimental_option("prefs", {
-            "download.default_directory": os.path.abspath("data"),
+            "download.default_directory": os.path.abspath(RAW_DATA_DIR),
             "download.prompt_for_download": False,
             "download.directory_upgrade": True,
             "safebrowsing.enabled": True
         })
-        if os.getenv("HEADLESS", "false").lower() == "true":
-            chrome_options.add_argument("--headless=new")
         service = Service(log_path=os.devnull)
         driver = webdriver.Chrome(service=service, options=chrome_options)
-        os.makedirs("data", exist_ok=True)
+        os.makedirs(RAW_DATA_DIR, exist_ok=True)
         logger.info("Chrome WebDriver initialized.")
     return driver
 

@@ -83,6 +83,7 @@ h2 {
     height: 200px;
     overflow-y: scroll;
 }
+
 #submit-button, #visualize-button {
     background-color: #4CAF50;
     color: white;
@@ -91,6 +92,7 @@ h2 {
 #download-button, #clean-button {
     border: 1px solid black;
 }
+
 #import-button {
     background-color: #C99A5AFF;
 }
@@ -121,4 +123,9 @@ h2 {
 
 .date-label {
     margin-top: 10px !important;
+}
+
+.error-message {
+    'color': 'red',
+    'margin': '20px'
 }

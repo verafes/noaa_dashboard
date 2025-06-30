@@ -68,6 +68,13 @@ def clean_data(df: pd.DataFrame) -> pd.DataFrame:
     df.dropna(subset=['DATE'], inplace=True)
     logger.info(f"DATE column converted to datetime. Valid dates count: {df['DATE'].notna().sum()}")
 
+    # Remove rows with DATE before 1930
+    before = len(df)
+    df = df[df['DATE'] >= pd.Timestamp("1930-01-01")]
+    removed = before - len(df)
+    if removed > 0:
+        logger.info(f"[CLEAN] Removed {removed} rows with DATE before 1930.")
+
     # Fill 'TAVG' with average of 'TMAX' and 'TMIN'
     if all(col in df.columns for col in ['TMAX', 'TMIN']):
         avg_temp = df[['TMAX', 'TMIN']].mean(axis=1)

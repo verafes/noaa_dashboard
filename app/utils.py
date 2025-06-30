@@ -9,12 +9,31 @@ import re
 
 from .logger import logger
 
+IS_RENDER = os.getenv("RENDER", "false").lower() == "true"
+
+# IS_RENDER = bool(os.getenv("RENDER_SERVICE_ID"))
+logger.info(f"[ENV DETECTION] IS_RENDER={IS_RENDER}")
+logger.info(f"RENDER_SERVICE_ID: {os.getenv('RENDER_SERVICE_ID')}")
 
 # Path Constants
-PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-RAW_DATA_DIR = os.path.join(PROJECT_ROOT, "data", "raw")
-PROCESSED_DATA_DIR = os.path.join(PROJECT_ROOT, "data", "processed")
-LOGS_DIR = os.path.join(PROJECT_ROOT, "logs")
+if IS_RENDER:
+    BASE_DATA_DIR = "/tmp/data"
+else:
+    PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    BASE_DATA_DIR = os.path.join(PROJECT_ROOT, "data")
+
+RAW_DATA_DIR = os.path.join(BASE_DATA_DIR, "raw")
+PROCESSED_DATA_DIR = os.path.join(BASE_DATA_DIR, "processed")
+LOGS_DIR = os.path.join(BASE_DATA_DIR if IS_RENDER else PROJECT_ROOT, "logs")
+
+# Create folders if they don't exist
+os.makedirs(RAW_DATA_DIR, exist_ok=True)
+os.makedirs(PROCESSED_DATA_DIR, exist_ok=True)
+os.makedirs(LOGS_DIR, exist_ok=True)
+
+logger.info(f"[PATHS] RAW_DATA_DIR: {RAW_DATA_DIR}")
+logger.info(f"[PATHS] PROCESSED_DATA_DIR: {PROCESSED_DATA_DIR}")
+logger.info(f"[PATHS] LOGS_DIR: {LOGS_DIR}")
 
 # Constants
 DATA_TYPES = [

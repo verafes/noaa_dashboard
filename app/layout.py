@@ -101,7 +101,7 @@ def create_layout():
                     id='analysis-chart-dropdown',
                     options=[
                         {'label': 'Yearly Max Temperature Trends (Line chart)', 'value': 'Max Temp Trends'},
-                        {'label': 'Avf Temperature over Years (Boxplot)', 'value': 'Temp Boxplot'},
+                        {'label': 'Avg Temperature over Years (Boxplot)', 'value': 'Temp Boxplot'},
                         {'label': 'Snowfall Contribution by Station (Pie)', 'value': 'Snowfall Pie'},
                         {'label': 'Total Snowfall by Station (Bar)', 'value': 'Snowfall Bar'},
                         {'label': 'Snowfall Max Snowfalls Trends (Line chart)', 'value': 'Snowfall Trends'},
