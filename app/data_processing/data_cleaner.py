@@ -3,7 +3,7 @@ import glob
 import numpy as np
 import pandas as pd
 
-from app.utils import PROJECT_ROOT, RAW_DATA_DIR, PROCESSED_DATA_DIR, get_latest_csv_filename
+from app.utils import RAW_DATA_DIR, PROCESSED_DATA_DIR, get_latest_csv_filename
 from app.logger import logger
 
 input_dir=RAW_DATA_DIR

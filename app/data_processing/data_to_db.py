@@ -2,8 +2,8 @@ import sqlite3
 import pandas as pd
 import os
 
-from app.data_processing.data_cleaner import list_csv_files, write_file_list, clean_single_csv
-from app.utils import PROJECT_ROOT, RAW_DATA_DIR, PROCESSED_DATA_DIR, DB_DIR, DB_PATH, DB_NAME, TABLE_NAME, get_latest_csv_filename
+from app.data_processing.data_cleaner import list_csv_files, clean_single_csv
+from app.utils import RAW_DATA_DIR, PROCESSED_DATA_DIR, DB_DIR, DB_PATH, DB_NAME, TABLE_NAME, get_latest_csv_filename
 from app.logger import logger
 
 input_dir = RAW_DATA_DIR
@@ -17,9 +17,14 @@ optional_cols = ['TAVG', 'TMIN', 'TMAX', 'WT16', 'SNOW', 'ACMH', 'WSFG',
                  'PRCP', 'RHAV', 'TSUN', 'WT08', 'WT01', 'WT02']
 keep_cols = base_cols + optional_cols
 
-# Get all cleaned CSV files if multiple
-# csv_files = list_csv_files(PROCESSED_DATA_DIR) # get list of cleaned files
-# logger.info(csv_files)
+def get_all_cleaned_csv_files() -> list[str]:
+    """Get all cleaned CSV files if multiple"""
+    csv_files = list_csv_files(PROCESSED_DATA_DIR)
+    logger.info(f"Found cleaned CSV files: {csv_files}")
+    if not csv_files:
+        logger.info("No CSV files to import.")
+        return []
+    return csv_files
 
 def clean_latest_csv_file(filename) -> str:
     """Get latest downloaded CSV filename, clean it, and return the filename."""
@@ -37,9 +42,12 @@ def prepare_latest_csv_files():
     csv_path = None
     if csv_path is None:
         latest = get_latest_csv_filename()
+        if not latest:
+            logger.info("No CSV files to import.")
+            return False, "No CSV files found."
         latest_csv_filename = clean_latest_csv_file(latest)
         csv_files = get_cleaned_csv_files(latest_csv_filename)
-        logger.info(csv_files)
+        logger.info(f"Cleaned CSV files: {csv_files}")
     else:
         csv_files = [csv_path]
     logger.info(f"CSV files to import: {csv_files}")
@@ -68,6 +76,9 @@ def import_csv_to_db(csv_path: str = None) -> tuple[bool, str]:
 
         if csv_path is None:
             latest = get_latest_csv_filename()
+            if not latest:
+                logger.info("No CSV files to import.")
+                return False, "No CSV files found."
             latest_csv_filename = clean_latest_csv_file(latest)
             csv_files = get_cleaned_csv_files(latest_csv_filename)
         else:

@@ -35,6 +35,10 @@ def init_driver():
         chrome_options = Options()
         if IS_RENDER:
             chrome_options.add_argument("--headless=new")
+            chrome_options.add_argument("--no-sandbox")
+            chrome_options.add_argument("--disable-dev-shm-usage")
+            chrome_options.add_argument("--disable-gpu")
+            DOWNLOAD_DIR = os.path.abspath(RAW_DATA_DIR)
         else:
             chrome_options.add_argument("--incognito")
         chrome_options.add_experimental_option("prefs", {
@@ -45,7 +49,7 @@ def init_driver():
         })
         service = Service(log_path=os.devnull)
         driver = webdriver.Chrome(service=service, options=chrome_options)
-        os.makedirs(RAW_DATA_DIR, exist_ok=True)
+        os.makedirs(DOWNLOAD_DIR, exist_ok=True)
         logger.info("Chrome WebDriver initialized.")
     return driver
 
