@@ -34,7 +34,7 @@ def register_callbacks(app):
             ctx = dash.callback_context
         if not ctx.triggered:
             logger.warning("[DASHBOARD] No callback triggered")
-            return [dash.no_update] * 4, "default"
+            return dash.no_update, dash.no_update, dash.no_update, dash.no_update, "default"
         # 2. Validate required inputs
         if not n_clicks or not all([city_name, data_type]):
             logger.warning("[VALIDATION] Missing required inputs: city or data_type")
@@ -89,11 +89,29 @@ def register_callbacks(app):
                     save_to_cache(df, city_name, data_type)
                     logger.info(f"[CACHE] Saved data to cache for {city_name} ({data_type})")
                 except pd.errors.EmptyDataError:
-                    return format_status_message("Downloaded file is empty", "error")
+                    return (
+                        html.Div(f"Error: Downloaded file is empty", className="error-message"),
+                        dash.no_update,
+                        {'display': 'none'},
+                        format_status_message(f"Downloaded file is empty", "error"),
+                        "default"
+                    )
                 except pd.errors.ParserError:
-                    return format_status_message("Could not parse downloaded file", "error")
+                    return (
+                        html.Div(f"Error: Could not parse downloaded file", className="error-message"),
+                        dash.no_update,
+                        {'display': 'none'},
+                        format_status_message(f"Could not parse downloaded file", "error"),
+                        "default"
+                    )
                 except Exception as e:
-                    return format_status_message(f"Unexpected error: {str(e)}", "error")
+                    return (
+                        html.Div(f"Unexpected error: {str(e)}", className="error-message"),
+                        dash.no_update,
+                        {'display': 'none'},
+                        format_status_message(f"Unexpected error: {str(e)}", "error"),
+                        "default"
+                    )
 
             df = df.dropna(subset=['DATE', 'NAME'])
             logger.info(f"[DEBUG] Valid DATEs after parsing: {df['DATE'].notna().sum()} / {len(df)}")

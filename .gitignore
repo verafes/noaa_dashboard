@@ -33,4 +33,5 @@ draft.txt
 !data/raw/.gitkeep
 !data/cache/.gitkeep
 !data/processed/.gitkeep
-/app/db/*.db
+db/*
+!db/.gitkeep

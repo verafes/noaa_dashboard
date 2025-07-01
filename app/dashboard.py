@@ -6,7 +6,9 @@ from dash import Dash
 from .callbacks import register_all_callbacks
 from .logger import logger
 from .layout import create_layout
-
+from app.utils import IS_RENDER
+from dotenv import load_dotenv
+load_dotenv()
 
 # Environment settings
 os.environ['DASH_DEBUG'] = 'False'
@@ -18,8 +20,12 @@ os.environ['NODE_OPTIONS'] = '--no-warnings'
 warnings.filterwarnings("ignore")
 
 # Ensure data directory exists
-DOWNLOAD_DIR = os.path.abspath("data")
+if IS_RENDER:
+    DOWNLOAD_DIR = "/tmp/data"
+else:
+    DOWNLOAD_DIR = os.path.abspath("data")
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
+logger.info(f"[PATHS] DOWNLOAD_DIR set to: {DOWNLOAD_DIR}")
 
 
 def create_dash_app():
@@ -56,3 +62,4 @@ def create_dash_app():
 app = create_dash_app()
 server = app.server
 
+logger.info("[APP] Dash NOAA Weather Dashboard app module loaded")

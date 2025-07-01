@@ -4,7 +4,11 @@ from dash.exceptions import PreventUpdate
 from dash import html, Input, Output, State
 
 import matplotlib
-matplotlib.use('TkAgg')
+
+from app.utils import format_status_message
+from app.utils import DB_PATH, TABLE_NAME, RAW_DATA_DIR, PROCESSED_DATA_DIR
+
+matplotlib.use('Agg')
 from matplotlib import pyplot as plt
 import threading
 import pandas as pd
@@ -21,20 +25,22 @@ from app.data_processing.data_analysis import (
     plot_snowfall_trends, plot_station_trends,
     label_map, plot_yearly_distributions,
     plot_weather_correlation_heatmap, prepare_event_flags,
-    plot_aggregated_weather_event_frequencies
+    plot_aggregated_weather_event_frequencies,
+    # plot_sunshine_trends_by_station
 )
 
 from app.logger import logger
 
 # DB location
-DB_DIR = os.path.join(os.path.dirname(os.path.realpath(__file__)), "../db")
-DB_NAME = "noaa_weather.db"
-DB_PATH = os.path.join(DB_DIR, DB_NAME)
-TABLE_NAME = "weather_data"
+# DB_DIR = os.path.join(os.path.dirname(os.path.realpath(__file__)), "../db")
+# DB_NAME = "noaa_weather.db"
+# DB_PATH = os.path.join(DB_DIR, DB_NAME)
+# TABLE_NAME = "weather_data"
 
 def register_callbacks(app):
     @app.callback(
         Output("__dummy_output", "children"),  # Required dummy output
+        Output('results-container', 'children', allow_duplicate=True),
         Input("visualize-button", "n_clicks"),
         [State("analysis-chart-dropdown", "value"),
          State("start-date", "date"),
@@ -50,6 +56,7 @@ def register_callbacks(app):
             try:
                 logger.info("Starting weather data analysis...")
 
+                df = None
                 df_weather = load_data_from_db(DB_PATH, TABLE_NAME)
                 logger.info(f"Loaded weather data: {len(df_weather)} records")
                 logger.info("Checking for missing values:")
@@ -77,6 +84,7 @@ def register_callbacks(app):
                 if selected_chart == "Max Temp Trends":
                     df_agg_st = aggregate_by_station_and_time(df_weather, date_freq='Y')
                     stations = df_agg_st['NAME'].unique()[:20]
+                    # img_src = plot_max_temperature_trends(df_agg_st, stations)
                     plot_max_temperature_trends(df_agg_st, stations)
                 elif selected_chart == "Temp Boxplot":
                     plot_temperature_boxplot(df_agg)
@@ -88,9 +96,6 @@ def register_callbacks(app):
                     df_agg_st = aggregate_by_station_and_time(df_weather, date_freq='Y')
                     stations = df_agg_st['NAME'].unique()[:20]
                     plot_snowfall_trends(df_agg_st, stations)
-                elif selected_chart == "Sunshine Trends":
-                    conditions = ['TSUN', 'WSFG', 'RHAV']
-                    plot_station_trends(df_weather, 'TSUN', label_map)
                 elif selected_chart == "Weather Events":
                     df_weather['YEAR'] = df_weather['DATE'].dt.year
                     conditions = ['WT01', 'WT08', 'WT16', 'WSFG']
@@ -109,14 +114,13 @@ def register_callbacks(app):
                     ]
                     plot_weather_correlation_heatmap(df_weather, conditions)
 
-                plt.show(block=True)
-
             except Exception as e:
-                print(f"Error during visualization: {str(e)}")
+                logger.info(f"Error during visualization: {str(e)}")
+                return html.Div(format_status_message(f"Error during visualization: {e}", "error"))
             finally:
                 plt.close('all')
         # Run visualization in separate thread to avoid blocking Dash
         thread = threading.Thread(target=run_visualization, daemon=True)
         thread.start()
 
-        return ""
+        return "", ""

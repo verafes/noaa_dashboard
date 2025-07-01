@@ -9,12 +9,39 @@ import re
 
 from .logger import logger
 
+IS_RENDER = os.getenv("RENDER", "false").lower() == "true"
+
+# IS_RENDER = bool(os.getenv("RENDER_SERVICE_ID"))
+logger.info(f"[ENV DETECTION] IS_RENDER={IS_RENDER}")
+logger.info(f"RENDER_SERVICE_ID: {os.getenv('RENDER_SERVICE_ID')}")
 
 # Path Constants
-PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-RAW_DATA_DIR = os.path.join(PROJECT_ROOT, "data", "raw")
-PROCESSED_DATA_DIR = os.path.join(PROJECT_ROOT, "data", "processed")
-LOGS_DIR = os.path.join(PROJECT_ROOT, "logs")
+if IS_RENDER:
+    BASE_DATA_DIR = "/tmp/data"
+    DB_DIR = "/tmp/db"
+else:
+    PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    BASE_DATA_DIR = os.path.join(PROJECT_ROOT, "data")
+    DB_DIR = os.path.join(PROJECT_ROOT, "db")
+
+RAW_DATA_DIR = os.path.join(BASE_DATA_DIR, "raw")
+PROCESSED_DATA_DIR = os.path.join(BASE_DATA_DIR, "processed")
+LOGS_DIR = os.path.join(BASE_DATA_DIR if IS_RENDER else PROJECT_ROOT, "logs")
+
+DB_NAME = "noaa_weather.db"
+DB_PATH = os.path.join(DB_DIR, DB_NAME)
+TABLE_NAME = "weather_data"
+
+# Create folders if they don't exist
+os.makedirs(RAW_DATA_DIR, exist_ok=True)
+os.makedirs(PROCESSED_DATA_DIR, exist_ok=True)
+os.makedirs(LOGS_DIR, exist_ok=True)
+os.makedirs(DB_DIR, exist_ok=True)
+
+logger.info(f"[PATHS] RAW_DATA_DIR: {RAW_DATA_DIR}")
+logger.info(f"[PATHS] PROCESSED_DATA_DIR: {PROCESSED_DATA_DIR}")
+logger.info(f"[PATHS] LOGS_DIR: {LOGS_DIR}")
+logger.info(f"[PATHS] DB_PATH: {DB_PATH}")
 
 # Constants
 DATA_TYPES = [
@@ -112,6 +139,21 @@ VIS_CONFIG = {
         'required_cols': {'DATE', 'NAME'}
     }
 }
+
+label_map = {
+        'TAVG': 'Average Temperature',
+        'TMAX': 'Maximum Temperature',
+        'TMIN': 'Minimum Temperature',
+        'PRCP': 'Precipitation',
+        'SNOW': 'Snowfall',
+        'TSUN': 'Sunshine Duration',
+        'ACMH': 'Average Cloud Height',
+        'WSFG': 'Wind Gust Speed',
+        'RHAV': 'Relative Humidity',
+        'WT01': 'Fog Occurrence',
+        'WT08': 'Smoke or Haze Occurrence',
+        'WT16': 'Rain Occurrence',
+    }
 
 def get_vis_config(data_type):
     """Get visualization config for given data type with fallback to default"""
