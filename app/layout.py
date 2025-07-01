@@ -101,11 +101,10 @@ def create_layout():
                     id='analysis-chart-dropdown',
                     options=[
                         {'label': 'Yearly Max Temperature Trends (Line chart)', 'value': 'Max Temp Trends'},
-                        {'label': 'Avg Temperature over Years (Boxplot)', 'value': 'Temp Boxplot'},
+                        {'label': 'Avg Temperature Over Years (Boxplot)', 'value': 'Temp Boxplot'},
                         {'label': 'Snowfall Contribution by Station (Pie)', 'value': 'Snowfall Pie'},
                         {'label': 'Total Snowfall by Station (Bar)', 'value': 'Snowfall Bar'},
                         {'label': 'Snowfall Max Snowfalls Trends (Line chart)', 'value': 'Snowfall Trends'},
-                        {'label': 'Yearly Sunshine Duration (Line chart)', 'value': 'Annual Averages'},
                         {'label': 'Event Frequencies Fog, Smoke, Rain, Wind (Bar)', 'value': 'Weather Events'},
                         {'label': 'Yearly Distributions Temp, Precip, Snow (Boxplot)', 'value': 'Yearly Distributions'},
                         {'label': 'Correlation Heatmap', 'value': 'Correlation Heatmap'},

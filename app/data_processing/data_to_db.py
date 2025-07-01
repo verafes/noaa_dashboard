@@ -3,22 +3,13 @@ import pandas as pd
 import os
 
 from app.data_processing.data_cleaner import list_csv_files, write_file_list, clean_single_csv
-from app.utils import PROJECT_ROOT, RAW_DATA_DIR, PROCESSED_DATA_DIR, get_latest_csv_filename
+from app.utils import PROJECT_ROOT, RAW_DATA_DIR, PROCESSED_DATA_DIR, DB_DIR, DB_PATH, DB_NAME, TABLE_NAME, get_latest_csv_filename
 from app.logger import logger
 
 input_dir = RAW_DATA_DIR
 output_dir = PROCESSED_DATA_DIR
 logger.info(f"Input folder: {input_dir}")
 
-# DB location
-DB_DIR = os.path.join(os.path.dirname(os.path.realpath(__file__)), "../db")
-DB_NAME = "noaa_weather.db"
-DB_PATH = os.path.join(DB_DIR, DB_NAME)
-TABLE_NAME = "weather_data"
-
-# Ensure the DB directory exists
-os.makedirs(DB_DIR, exist_ok=True)
-logger.info(f"Database directory ensured: {DB_DIR}")
 
 # Column Definitions
 base_cols = ['STATION', 'DATE', 'LATITUDE', 'LONGITUDE', 'ELEVATION', 'NAME']

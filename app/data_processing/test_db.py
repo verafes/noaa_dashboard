@@ -1,11 +1,8 @@
 import sqlite3
 
-from app.utils import find_city_in_name, US_CITY_NAMES, SPECIAL_CITY_EXCEPTIONS
+from app.utils import find_city_in_name, US_CITY_NAMES, SPECIAL_CITY_EXCEPTIONS, DB_PATH, TABLE_NAME
 from app.logger import logger
 
-
-DB_PATH = "../db/noaa_weather.db"
-TABLE_NAME = "weather_data"
 
 stations_list = []
 stations_str_list = []
@@ -82,22 +79,42 @@ with sqlite3.connect(DB_PATH) as conn:
         print(f"Found {len(suspect_rows)} rows with unreal TAVG, TMIN, or TMAX values:")
         for station, date, tavg, tmin, tmax in suspect_rows:
             print(f"Station: {station}, Date: {date}, TAVG: {tavg}, TMIN: {tmin}, TMAX: {tmax}")
+
+        delete_query = f"""
+            DELETE FROM {TABLE_NAME}
+            WHERE (TAVG IS NOT NULL AND (TAVG < -500 OR TAVG > 500))
+               OR (TMIN IS NOT NULL AND (TMIN < -500 OR TMIN > 500))
+               OR (TMAX IS NOT NULL AND (TMAX < -500 OR TMAX > 512))
+            """
+        cursor.execute(delete_query)
+        conn.commit()
+        print(f"Deleted {cursor.rowcount} rows.")
+
     else:
         print("No unreal temperature values found.")
-
-    delete_query = f"""
-        DELETE FROM {TABLE_NAME}
-        WHERE (TAVG IS NOT NULL AND (TAVG < -500 OR TAVG > 500))
-           OR (TMIN IS NOT NULL AND (TMIN < -500 OR TMIN > 500))
-           OR (TMAX IS NOT NULL AND (TMAX < -500 OR TMAX > 512))
-        """
-    cursor.execute(delete_query)
-    conn.commit()
 
     # check how many rows remain
     cursor.execute(f"SELECT COUNT(*) FROM {TABLE_NAME}")
     total_after = cursor.fetchone()[0]
-    print(f"Remaining Total rows after cleanup: {total_after}")
+    print(f"Remaining Total rows after cleanup (unreal temp values): {total_after}")
+
+    # First, check how many rows exist before 1930
+    cursor.execute("""
+        SELECT COUNT(*) FROM weather_data
+        WHERE DATE < '1930-01-01'
+    """)
+    count = cursor.fetchone()[0]
+
+    if count > 0:
+        print(f"Found {count} rows with DATE before 1930. Deleting them...")
+        cursor.execute("""
+            DELETE FROM weather_data
+            WHERE DATE < '1930-01-01'
+        """)
+        conn.commit()
+        print("Old rows removed.")
+    else:
+        print("No rows before 1930 found. No action needed.")
 
     query = f"""
         SELECT
@@ -131,11 +148,48 @@ with sqlite3.connect(DB_PATH) as conn:
     results = cursor.fetchall()
 
     print(f"Found {len(results)} records with temperature below -100:")
-    for station, date, tavg, tmin, tmax in results:
-        print(f"Station: {station}, Date: {date}, TAVG: {tavg}, TMIN: {tmin}, TMAX: {tmax}")
+    # for station, date, tavg, tmin, tmax in results:
+    #     logger.info(f"Station: {station}, Date: {date}, TAVG: {tavg}, TMIN: {tmin}, TMAX: {tmax}")
 
+    # 1. Count total non-null TSUN values
+    cursor.execute(f"""
+        SELECT COUNT(*) FROM {TABLE_NAME}
+        WHERE TSUN IS NOT NULL;
+    """)
+    non_null_count = cursor.fetchone()[0]
+    print(f"✅ Non-null TSUN values: {non_null_count}")
 
+    # 2. Count values where TSUN > 0
+    cursor.execute(f"""
+        SELECT COUNT(*) FROM {TABLE_NAME}
+        WHERE TSUN > 0;
+    """)
+    greater_than_zero_count = cursor.fetchone()[0]
+    print(f"☀️ TSUN > 0 values: {greater_than_zero_count}")
 
+    # 3. Number of stations with TSUN > 0
+    cursor.execute(f"""
+        SELECT NAME, COUNT(*) as records
+        FROM {TABLE_NAME}
+        WHERE TSUN > 0
+        GROUP BY NAME
+        ORDER BY records DESC
+        LIMIT 20;
+    """)
+    results = cursor.fetchall()
+    print("\n📊 Top stations with TSUN > 0:")
+    for name, count in results:
+        print(f"- {name}: {count} records")
+
+    # check how many rows remain
+    cursor.execute(f"SELECT COUNT(*) FROM {TABLE_NAME}")
+    total_after = cursor.fetchone()[0]
+    print(f"Remaining Total rows after all cleanups: {total_after}")
+
+    for col in ['WT01', 'WT08', 'WT16']:
+        cursor.execute(f"SELECT COUNT(*) FROM {TABLE_NAME} WHERE {col} IS NOT NULL")
+        count = cursor.fetchone()[0]
+        logger.info(f"Non-null count for {col}: {count}")
 
 def extract_city_state(name):
     parts = name.split(',')

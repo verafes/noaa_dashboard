@@ -11,31 +11,12 @@ import plotly.express as px
 import seaborn as sns
 
 from app.logger import logger
+from app.utils import BASE_DATA_DIR,DB_DIR, DB_PATH, DB_NAME, TABLE_NAME, label_map
 
-# DB location
-DB_DIR = os.path.join(os.path.dirname(os.path.realpath(__file__)), "../db")
-DB_NAME = "noaa_weather.db"
-DB_PATH = os.path.join(DB_DIR, DB_NAME)
-TABLE_NAME = "weather_data"
-
-# Ensure the DB directory exists
-os.makedirs(DB_DIR, exist_ok=True)
-logger.info(f"Database directory ensured: {DB_DIR}")
-
-label_map = {
-        'TAVG': 'Average Temperature',
-        'TMAX': 'Maximum Temperature',
-        'TMIN': 'Minimum Temperature',
-        'PRCP': 'Precipitation',
-        'SNOW': 'Snowfall',
-        'TSUN': 'Sunshine Duration',
-        'ACMH': 'Average Cloud Height',
-        'WSFG': 'Wind Gust Speed',
-        'RHAV': 'Relative Humidity',
-        'WT01': 'Fog Occurrence',
-        'WT08': 'Smoke or Haze Occurrence',
-        'WT16': 'Rain Occurrence',
-    }
+cols = [
+    'TMIN', 'TAVG', 'TMAX', 'PRCP', 'SNOW', 'TSUN',
+    'ACMH', 'WSFG', 'RHAV', 'WT01', 'WT02', 'WT08', 'WT16'
+    ]
 
 def load_data_from_db(db_path, table_name):
     """Load data from SQLite table into a DataFrame."""
@@ -55,11 +36,13 @@ def get_label(col):
     """Get readable label for a weather code."""
     return label_map.get(col, col)
 
-def aggregate_by_station_and_time(df, date_freq='Y'):
+def aggregate_by_station_and_time(df, date_freq='Y', agg_cols=None):
     """Aggregate weather data by station and period."""
     df['YEAR_PERIOD'] = df['DATE'].dt.to_period(date_freq)
 
-    agg_cols = ['TMIN', 'TAVG', 'TMAX', 'PRCP', 'SNOW']
+    if agg_cols is None:
+        agg_cols = cols
+
     agg_dict = {col: 'mean' for col in agg_cols if col in df.columns}
 
     grouped = df.groupby(['NAME', 'YEAR_PERIOD']).agg(agg_dict).reset_index()
@@ -94,10 +77,7 @@ def aggregate_weather_conditions(df, date_freq='Y'):
     """Aggregate multiple weather metrics by station and period."""
     df['YEAR_PERIOD'] = df['DATE'].dt.to_period(date_freq)
 
-    agg_cols = ['TMIN', 'TAVG', 'TMAX', 'PRCP', 'SNOW', 'WT16', 'ACMH', 'WSFG',
-                'RHAV', 'TSUN', 'WT08', 'WT01']
-
-    agg_dict = {col: 'mean' for col in agg_cols if col in df.columns}
+    agg_dict = {col: 'mean' for col in cols if col in df.columns}
 
     sum_cols = ['WT16', 'WT08', 'WT01']
     for col in sum_cols:
@@ -236,7 +216,12 @@ def plot_snowfall_bar(df_grouped, year):
         logger.info(f"No snowfall data for year {year}")
         return
 
-    snowfall_sum = data_year.groupby('NAME')['SNOW'].sum().sort_values(ascending=False)
+    snowfall_sum = data_year.groupby('NAME')['SNOW'].sum()
+    snowfall_sum = snowfall_sum[snowfall_sum >= 0.15].sort_values(ascending=False)
+
+    if snowfall_sum.empty:
+        logger.info(f"All stations had snowfall less than 0.2 inches in {year}")
+        return
 
     plt.figure(figsize=(12, 6))
     snowfall_sum.plot(kind='bar', color='skyblue')
@@ -266,9 +251,9 @@ def plot_temperature_boxplot(df_grouped, temp_col='TAVG'):
     plt.tight_layout()
     plt.show()
 
-def show_max_temp_trends(df):
+def show_max_temp_trends(df, agg_cols):
     """Aggregate and plot max temperature trends for stations."""
-    df_agg = aggregate_by_station_and_time(df, date_freq='Y')
+    df_agg = aggregate_by_station_and_time(df, date_freq='Y', agg_cols=agg_cols)
     sample_stations = df_agg['NAME'].unique()[:20]
     logger.info(f"Plotting max temperature trends for stations: {sample_stations}")
     plot_max_temperature_trends(df_agg, sample_stations)
@@ -282,16 +267,30 @@ def explore_weather_by_station(df, num):
         plot_temperature(df_agg, station)
         plot_precipitation_and_snow(df_agg, station)
         plot_weather_events(df_agg, station)
+        plt.show()
 
-def plot_station_trends(df, variable, label_map):
+def plot_station_trends(df_grouped, stations, variable, label_map, max_value=None):
     """ Plot yearly trends of a single weather variable for each station separately."""
     try:
-        df = df.copy()
-        df['YEAR'] = df['DATE'].dt.year
-        df_filtered = df[df[variable].notna()]
+        df_grouped = df_grouped.copy()
 
-        # if max_value is not None:
-        #     df = df[df[variable] <= max_value]
+        for station in stations:
+            station_data = df_grouped[df_grouped['NAME'] == station]
+            if station_data.empty:
+                logger.info(f"No data for station: {station}")
+                continue
+            plt.plot(station_data['YEAR_PERIOD'].dt.to_timestamp(), station_data[variable], label=station)
+
+        df_grouped['YEAR'] = df_grouped['DATE'].dt.year
+        df_filtered = df_grouped[df_grouped[variable].notna()]
+
+
+        if max_value is not None:
+            df_filtered = df_filtered[df_filtered[variable] <= max_value]
+
+        if df_filtered.empty:
+            print("No data to plot after filtering.")
+            return
 
         yearly_station_avg = df_filtered.groupby(['NAME', 'YEAR'])[variable].mean().reset_index()
 
@@ -310,7 +309,6 @@ def plot_station_trends(df, variable, label_map):
             }
         )
         fig.show()
-        return fig
     except Exception as e:
         print(f"Error plotting trends: {str(e)}")
 
@@ -446,9 +444,26 @@ def plot_yearly_distributions(df, columns, label_map):
 def plot_weather_correlation_heatmap(df, columns):
     """Show correlation heatmap for selected weather features."""
     df_agg = aggregate_weather_conditions(df, date_freq='Y')
+
+    missing_cols = [col for col in columns if col not in df_agg.columns]
+    if missing_cols:
+        logger.info(f"Missing columns in aggregated data: {missing_cols}")
+        columns = [col for col in columns if col in df_agg.columns]
+
+    if not columns:
+        logger.info("No valid columns to plot.")
+        return
+
+    logger.info("Missing values per column in aggregated data:")
+    for col in columns:
+        nan_count = df_agg[col].isna().sum()
+        logger.info(f"  {col}: {nan_count} missing")
+
+    df_agg_clean = df_agg.dropna(subset=columns)
+    logger.info(f"Rows after dropping missing values in {columns}: {len(df_agg_clean)}")
+
     df_corr = df_agg[columns].corr()
 
-    df_corr = df[columns].corr()
     plt.figure(figsize=(10, 8))
     sns.heatmap(df_corr, annot=True, cmap='coolwarm', fmt=".2f")
     plt.title("Correlation Between Weather Features")
@@ -468,7 +483,8 @@ def menu(df_weather, year, num):
         choice = input("Choose an option: ").strip()
 
         if choice == '1':
-            show_max_temp_trends(df_weather)
+            agg_cols = ['TMIN', 'TAVG', 'TMAX', 'PRCP', 'SNOW', 'TSUN']
+            show_max_temp_trends(df_weather, agg_cols)
         elif choice == '2':
             plot_snowfall_pie(df_weather, year)
         elif choice == '3':
@@ -494,15 +510,13 @@ def analysis_and_visualization():
     logger.info("Checking for missing values:")
     logger.info(f"\n{df_weather.isna().sum()}")
 
-    df_agg = aggregate_by_station_and_time(df_weather, date_freq='Y')
+    df_agg = aggregate_weather_conditions(df_weather)
     logger.info(f"Aggregated data shape: {df_agg.shape}")
     sample_stations = df_agg['NAME'].unique()[:20]
     logger.info(f"Plotting max temperature trends for stations: {sample_stations}")
     plot_max_temperature_trends(df_agg, sample_stations)
 
     plot_snowfall_trends(df_agg, sample_stations)
-
-    df_agg = aggregate_weather_conditions(df_weather, date_freq='Y')
 
     # Pie chart for snowfall in 2020
     plot_snowfall_pie(df_agg, 2020)
@@ -515,10 +529,13 @@ def analysis_and_visualization():
 
     plot_annual_averages(df_weather, ['TSUN', 'WSFG', 'RHAV'], label_map)
     plot_aggregated_weather_event_frequencies(df_weather, ['WT01', 'WT02', 'WT08', 'WT16'], label_map)
-    plot_yearly_distributions(df_weather, ['TAVG', 'PRCP', 'SNOW'], label_map)
     plot_weather_correlation_heatmap(df_weather, [
         'TMIN', 'TAVG', 'TMAX', 'PRCP', 'SNOW', 'TSUN',
-        'ACMH', 'WSFG', 'RHAV', 'WT01', 'WT02', 'WT08', 'WT16'
+        'ACMH', 'WSFG', 'RHAV', 'WT01', 'WT08', 'WT16'
     ])
 
     logger.info("Script completed.")
+
+# -------------------------
+# analysis_and_visualization()
+# py -m app.data_processing.data_analysis
