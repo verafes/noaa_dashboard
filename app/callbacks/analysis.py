@@ -1,16 +1,13 @@
-import os
-
 from dash.exceptions import PreventUpdate
 from dash import html, Input, Output, State
 
 import matplotlib
 
 from app.utils import format_status_message
-from app.utils import DB_PATH, TABLE_NAME, RAW_DATA_DIR, PROCESSED_DATA_DIR
+from app.utils import DB_PATH, TABLE_NAME
 
 matplotlib.use('Agg')
 from matplotlib import pyplot as plt
-import threading
 import pandas as pd
 from datetime import datetime
 
@@ -22,24 +19,17 @@ from app.data_processing.data_analysis import (
     plot_max_temperature_trends,
     plot_temperature_boxplot,
     plot_snowfall_pie, plot_snowfall_bar,
-    plot_snowfall_trends, plot_station_trends,
+    plot_snowfall_trends,
     label_map, plot_yearly_distributions,
     plot_weather_correlation_heatmap, prepare_event_flags,
-    plot_aggregated_weather_event_frequencies,
-    # plot_sunshine_trends_by_station
+    plot_aggregated_weather_event_frequencies
 )
 
 from app.logger import logger
 
-# DB location
-# DB_DIR = os.path.join(os.path.dirname(os.path.realpath(__file__)), "../db")
-# DB_NAME = "noaa_weather.db"
-# DB_PATH = os.path.join(DB_DIR, DB_NAME)
-# TABLE_NAME = "weather_data"
-
 def register_callbacks(app):
     @app.callback(
-        Output("__dummy_output", "children"),  # Required dummy output
+        # Output("__dummy_output", "children"),  # Required dummy output
         Output('results-container', 'children', allow_duplicate=True),
         Input("visualize-button", "n_clicks"),
         [State("analysis-chart-dropdown", "value"),
@@ -76,51 +66,57 @@ def register_callbacks(app):
                         (df_agg['YEAR_PERIOD'].dt.to_timestamp() <= end)
                         ]
 
-                plt.switch_backend('TkAgg')  # or 'Qt5Agg'
-
                 year = pd.to_datetime(start_date).year if start_date else datetime.now().year
-
+                img_src = None
                 # Generate selected plot
                 if selected_chart == "Max Temp Trends":
                     df_agg_st = aggregate_by_station_and_time(df_weather, date_freq='Y')
                     stations = df_agg_st['NAME'].unique()[:20]
-                    # img_src = plot_max_temperature_trends(df_agg_st, stations)
-                    plot_max_temperature_trends(df_agg_st, stations)
+                    img_src = plot_max_temperature_trends(df_agg_st, stations)
                 elif selected_chart == "Temp Boxplot":
-                    plot_temperature_boxplot(df_agg)
+                    img_src = plot_temperature_boxplot(df_agg)
                 elif selected_chart == "Snowfall Pie":
-                    plot_snowfall_pie(df_agg, year)
+                    img_src = plot_snowfall_pie(df_agg, year)
                 elif selected_chart == "Snowfall Bar":
-                    plot_snowfall_bar(df_agg, year)
+                    img_src = plot_snowfall_bar(df_agg, year)
                 elif selected_chart == "Snowfall Trends":
                     df_agg_st = aggregate_by_station_and_time(df_weather, date_freq='Y')
                     stations = df_agg_st['NAME'].unique()[:20]
-                    plot_snowfall_trends(df_agg_st, stations)
+                    img_src = plot_snowfall_trends(df_agg_st, stations)
                 elif selected_chart == "Weather Events":
                     df_weather['YEAR'] = df_weather['DATE'].dt.year
                     conditions = ['WT01', 'WT08', 'WT16', 'WSFG']
-                    plot_aggregated_weather_event_frequencies(
+                    img_src = plot_aggregated_weather_event_frequencies(
                         prepare_event_flags(df_weather, conditions),
                         conditions,
                         label_map
                     )
                 elif selected_chart == "Yearly Distributions":
                     conditions = ['TAVG', 'PRCP', 'SNOW']
-                    plot_yearly_distributions(df_weather, conditions, label_map)
+                    img_src = plot_yearly_distributions(df_weather, conditions, label_map)
                 elif selected_chart == "Correlation Heatmap":
                     conditions = [
                         'TMIN', 'TAVG', 'TMAX', 'PRCP', 'SNOW', 'TSUN',
                         'ACMH', 'WSFG', 'RHAV', 'WT01', 'WT08', 'WT16'
                     ]
-                    plot_weather_correlation_heatmap(df_weather, conditions)
+                    img_src = plot_weather_correlation_heatmap(df_weather, conditions)
 
             except Exception as e:
                 logger.info(f"Error during visualization: {str(e)}")
                 return html.Div(format_status_message(f"Error during visualization: {e}", "error"))
             finally:
                 plt.close('all')
-        # Run visualization in separate thread to avoid blocking Dash
-        thread = threading.Thread(target=run_visualization, daemon=True)
-        thread.start()
 
-        return "", ""
+            if isinstance(img_src, list):
+                images_to_return = html.Div(
+                    [html.Img(src=src) for src in img_src],
+                    className="analysis-container"
+                )
+            else:
+                images_to_return = html.Div([
+                    html.Img(src=img_src )
+                ], className="analysis-container" )
+            return images_to_return
+
+        result = run_visualization()
+        return result

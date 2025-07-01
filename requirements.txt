@@ -5,7 +5,7 @@ selenium~=4.33.0
 pip
 selenium
 pytest
-dotenv~=0.9.9
+dotenv
 flask
 requests~=2.32.3
 python-dotenv~=1.1.0
@@ -16,3 +16,4 @@ geonamescache~=2.0.0
 seaborn~=0.13.2
 gunicorn>=23.0.0
 psutil~=7.0.0
+kaleido

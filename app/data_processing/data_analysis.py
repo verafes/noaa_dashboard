@@ -1,17 +1,18 @@
 import os
 import io
+import base64
 import sqlite3
+from dash import html
 import pandas as pd
 
 import matplotlib
-matplotlib.use('TkAgg')
-
+# matplotlib.use('TkAgg')
 from matplotlib import pyplot as plt
 import plotly.express as px
 import seaborn as sns
 
 from app.logger import logger
-from app.utils import BASE_DATA_DIR,DB_DIR, DB_PATH, DB_NAME, TABLE_NAME, label_map
+from app.utils import DB_DIR, DB_PATH, DB_NAME, TABLE_NAME, label_map
 
 cols = [
     'TMIN', 'TAVG', 'TMAX', 'PRCP', 'SNOW', 'TSUN',
@@ -31,6 +32,15 @@ def load_data_from_db(db_path, table_name):
     logger.info(f"Loaded DataFrame info:\n{df.info()}")
     conn.close()
     return df
+
+def fig_to_dash_image(fig, width="100%"):
+    """Convert a matplotlib figure to Dash HTML image."""
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png", bbox_inches='tight')
+    buf.seek(0)
+    encoded = base64.b64encode(buf.read()).decode("utf-8")
+    buf.close()
+    return f"data:image/png;base64,{encoded}"
 
 def get_label(col):
     """Get readable label for a weather code."""
@@ -64,7 +74,10 @@ def plot_max_temperature_trends(df_grouped, stations):
     plt.legend(loc='center left', bbox_to_anchor=(1, 0.5), fontsize='small')
     plt.xticks(rotation=45, ha='right')
     plt.tight_layout()
-    plt.show()
+    # plt.show()
+    fig = plt.gcf()
+    plt.close()
+    return fig_to_dash_image(fig)
 
 def aggregate_snowfall_by_station_and_time(df, date_freq='Y'):
     """Sum snowfall by station and period."""
@@ -102,7 +115,10 @@ def plot_temperature(df_grouped, station_name):
     plt.xlabel("Year")
     plt.ylabel("Temperature (°F)")
     plt.legend()
-    plt.show()
+    # plt.show()
+    fig = plt.gcf()
+    plt.close()
+    return fig_to_dash_image(fig)
 
 def plot_precipitation_and_snow(df_grouped, station_name):
     """Plot precipitation and snowfall for one station."""
@@ -118,7 +134,9 @@ def plot_precipitation_and_snow(df_grouped, station_name):
     plt.xlabel("Year")
     plt.ylabel("Inches")
     plt.legend()
-    plt.show()
+    fig = plt.gcf()
+    plt.close()
+    return fig_to_dash_image(fig)
 
 def plot_weather_events(df_grouped, station_name):
     """Plot weather event counts for one station."""
@@ -135,7 +153,9 @@ def plot_weather_events(df_grouped, station_name):
     plt.xlabel("Year")
     plt.ylabel("Event Counts")
     plt.legend()
-    plt.show()
+    fig = plt.gcf()
+    plt.close()
+    return fig_to_dash_image(fig)
 
 def plot_snowfall_trends(df_grouped, stations):
     """Plot yearly snowfall trends for stations."""
@@ -152,7 +172,9 @@ def plot_snowfall_trends(df_grouped, stations):
     plt.ylabel("Total Snowfall (inches)")
     plt.legend(loc='upper right', fontsize='small', ncol=2)
     plt.tight_layout()
-    plt.show()
+    fig = plt.gcf()
+    plt.close()
+    return fig_to_dash_image(fig)
 
 def plot_snowfall_pie(df_grouped, year, min_threshold=0.01):
     """Pie chart of snowfall contribution by station for a year."""
@@ -205,7 +227,9 @@ def plot_snowfall_pie(df_grouped, year, min_threshold=0.01):
     )
 
     plt.subplots_adjust(left=0.05, right=0.7, top=0.9, bottom=0.1)
-    plt.show()
+    fig = plt.gcf()
+    plt.close()
+    return fig_to_dash_image(fig)
 
 def plot_snowfall_bar(df_grouped, year):
     """Bar chart of snowfall totals by station for a year."""
@@ -230,7 +254,9 @@ def plot_snowfall_bar(df_grouped, year):
     plt.xlabel("Station")
     plt.xticks(rotation=45, ha='right')
     plt.tight_layout()
-    plt.show()
+    fig = plt.gcf()
+    plt.close()
+    return fig_to_dash_image(fig)
 
 def plot_temperature_boxplot(df_grouped, temp_col='TAVG'):
     """Boxplot of temperature distribution by year."""
@@ -249,7 +275,9 @@ def plot_temperature_boxplot(df_grouped, temp_col='TAVG'):
     ax.set_xlabel('Year')
     ax.set_ylabel(f'{readable_label} (°F)')
     plt.tight_layout()
-    plt.show()
+    fig = plt.gcf()
+    plt.close()
+    return fig_to_dash_image(fig)
 
 def show_max_temp_trends(df, agg_cols):
     """Aggregate and plot max temperature trends for stations."""
@@ -257,17 +285,6 @@ def show_max_temp_trends(df, agg_cols):
     sample_stations = df_agg['NAME'].unique()[:20]
     logger.info(f"Plotting max temperature trends for stations: {sample_stations}")
     plot_max_temperature_trends(df_agg, sample_stations)
-
-def explore_weather_by_station(df, num):
-    """Plot various weather charts for selected stations."""
-    df_agg = aggregate_weather_conditions(df, date_freq='Y')
-    stations = df_agg['NAME'].unique()[:num]
-    for station in stations:
-        logger.info(f"Plotting weather data for station: {station}")
-        plot_temperature(df_agg, station)
-        plot_precipitation_and_snow(df_agg, station)
-        plot_weather_events(df_agg, station)
-        plt.show()
 
 def plot_station_trends(df_grouped, stations, variable, label_map, max_value=None):
     """ Plot yearly trends of a single weather variable for each station separately."""
@@ -430,6 +447,7 @@ def plot_aggregated_weather_event_frequencies(df, event_cols, label_map, year_fr
 def plot_yearly_distributions(df, columns, label_map):
     """Plot yearly boxplots for weather variables (spread/distribution)"""
     df['YEAR'] = df['DATE'].dt.year
+    images = []
     for col in columns:
         if col in df.columns:
             fig = px.box(
@@ -439,7 +457,15 @@ def plot_yearly_distributions(df, columns, label_map):
                 title=f"{label_map.get(col, col)} Distribution by Year",
                 labels={'YEAR': 'Year', col: label_map.get(col, col)}
             )
-            fig.show()
+            # fig.show()
+            try:
+                img_bytes = fig.to_image(format="png")
+                encoded = base64.b64encode(img_bytes).decode()
+                img_src = f"data:image/png;base64,{encoded}"
+                images.append(img_src)
+            except Exception as e:
+                logger.error(f"Failed to render image for {col}: {e}")
+    return images
 
 def plot_weather_correlation_heatmap(df, columns):
     """Show correlation heatmap for selected weather features."""
@@ -462,43 +488,26 @@ def plot_weather_correlation_heatmap(df, columns):
     df_agg_clean = df_agg.dropna(subset=columns)
     logger.info(f"Rows after dropping missing values in {columns}: {len(df_agg_clean)}")
 
-    df_corr = df_agg[columns].corr()
+    df_agg_filled = df_agg.copy()
+    for col in columns:
+        mean_val = df_agg_filled[col].mean()
+        df_agg_filled[col].fillna(mean_val, inplace=True)
+    df_corr = df_agg_filled[columns].corr()
+
+    # df_corr = df_agg[columns].corr()
+    # mean_value = df_corr.stack().mean()
+    # df_corr.fillna(mean_value, inplace=True)
+    logger.info(df_corr)
 
     plt.figure(figsize=(10, 8))
     sns.heatmap(df_corr, annot=True, cmap='coolwarm', fmt=".2f")
     plt.title("Correlation Between Weather Features")
     plt.tight_layout()
-    plt.show()
-
-def menu(df_weather, year, num):
-    """Interactive menu to explore weather data plots."""
-    while True:
-        print("\n====== NOAA Weather Data Menu ======")
-        print("1 - Show loaded weather data info")
-        print("2 - Plot max temperature trends")
-        print("3 - Show snowfall pie & bar chart for year")
-        print("4 - Explore temperature, PRCP, and WT per station")
-        print("5 - Boxplot: Avg temperature distribution over years")
-        print("0 - Exit")
-        choice = input("Choose an option: ").strip()
-
-        if choice == '1':
-            agg_cols = ['TMIN', 'TAVG', 'TMAX', 'PRCP', 'SNOW', 'TSUN']
-            show_max_temp_trends(df_weather, agg_cols)
-        elif choice == '2':
-            plot_snowfall_pie(df_weather, year)
-        elif choice == '3':
-            plot_snowfall_bar(df_weather, year)
-        elif choice == '4':
-            explore_weather_by_station(df_weather, num)
-        elif choice == '5':
-            df_agg = aggregate_weather_conditions(df_weather, date_freq='Y')
-            plot_temperature_boxplot(df_agg)
-        elif choice == '0':
-            print("Exiting. Bye!")
-            break
-        else:
-            print("Invalid option. Try again.")
+    fig = plt.gcf()
+    plt.close()
+    img_str = fig_to_dash_image(fig)
+    logger.info(f"Generated image string length: {len(img_str)}")
+    return img_str
 
 def analysis_and_visualization():
     """Performs weather data analysis and generates visualizations for weather trends in CLI"""
