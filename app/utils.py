@@ -155,6 +155,17 @@ label_map = {
         'WT16': 'Rain Occurrence',
     }
 
+chart_options = [
+    {'label': 'Yearly Max Temperature Trends (Line chart)', 'value': 'Max Temp Trends'},
+    {'label': 'Avg Temperature Over Years (Boxplot)', 'value': 'Temp Boxplot'},
+    {'label': 'Snowfall Contribution by Station (Pie)', 'value': 'Snowfall Pie'},
+    {'label': 'Total Snowfall by Station (Bar)', 'value': 'Snowfall Bar'},
+    {'label': 'Snowfall Max Snowfalls Trends (Line chart)', 'value': 'Snowfall Trends'},
+    {'label': 'Event Frequencies Fog, Smoke, Rain, Wind (Bar)', 'value': 'Weather Events'},
+    {'label': 'Yearly Distributions Temp, Precip, Snow (Boxplot)', 'value': 'Yearly Distributions'},
+    {'label': 'Correlation Heatmap', 'value': 'Correlation Heatmap'},
+]
+
 def get_vis_config(data_type):
     """Get visualization config for given data type with fallback to default"""
     config = copy.deepcopy(VIS_CONFIG.get(data_type, VIS_CONFIG['default']))

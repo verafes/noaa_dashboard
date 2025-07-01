@@ -171,7 +171,7 @@ def register_callbacks(app):
             results = html.Div([
                 html.H3(f"Weather Data for {city_name}"),
                 html.P(f"Showing {get_data_type_label(data_type)} data{date_range_text}"),
-                html.P(f"Data points: {len(df)}"),
+                html.P(f"Data points: {len(df)}", className='centered-info'),
                 html.P(f"Date range: {df['DATE'].min().date()} to {df['DATE'].max().date()}"),
                 dash.dash_table.DataTable(
                     data=df.to_dict('records'),
@@ -179,7 +179,7 @@ def register_callbacks(app):
                     page_size=10,
                     style_table={'overflowX': 'auto'}
                 )
-            ])
+            ], className='centered-info')
             return (
                 results,  # Filled results container
                 df.to_dict('records'),  # Store processed data

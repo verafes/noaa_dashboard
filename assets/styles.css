@@ -19,6 +19,10 @@ h2 {
     margin: 0 0 0.5rem 0;
 }
 
+.centered-info {
+    text-align: center;
+}
+
 #city-input {
     width: 28rem;
     padding: 10px 20px 10px 10px;
@@ -109,10 +113,11 @@ h2 {
 }
 
 #date-range {
-    margin: 20px auto;
+    margin: 5px auto;
     font-size: 16px;
     display: block;
     width: 100%;
+    border-radius: 5px;
     text-align: center;
 }
 

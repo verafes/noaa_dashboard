@@ -3,7 +3,7 @@ from dash import html, Input, Output, State
 
 import matplotlib
 
-from app.utils import format_status_message
+from app.utils import format_status_message, chart_options
 from app.utils import DB_PATH, TABLE_NAME
 
 matplotlib.use('Agg')
@@ -30,7 +30,7 @@ from app.logger import logger
 def register_callbacks(app):
     @app.callback(
         # Output("__dummy_output", "children"),  # Required dummy output
-        Output('results-container', 'children', allow_duplicate=True),
+        Output('analysis-results', 'children', allow_duplicate=True),
         Input("visualize-button", "n_clicks"),
         [State("analysis-chart-dropdown", "value"),
          State("start-date", "date"),
@@ -42,7 +42,7 @@ def register_callbacks(app):
         if n_clicks is None or n_clicks == 0:
             raise PreventUpdate
 
-        def run_visualization():
+        def run_visualization(selected_chart):
             try:
                 logger.info("Starting weather data analysis...")
 
@@ -52,19 +52,21 @@ def register_callbacks(app):
                 logger.info("Checking for missing values:")
                 logger.info(f"\n{df_weather.isna().sum()}")
 
+                if start_date and end_date:
+                    start = pd.to_datetime(start_date)
+                    end = pd.to_datetime(end_date)
+                    df_weather = df_weather[
+                        (df_weather['YEAR_PERIOD'].dt.to_timestamp() >= start) &
+                        (df_weather['YEAR_PERIOD'].dt.to_timestamp() <= end)
+                        ]
+
                 df_agg = aggregate_weather_conditions(df_weather)
                 logger.info(f"Aggregated data shape: {df_agg.shape}")
 
                 logger.info(f"Stations in filtered data: {df_agg['NAME'].nunique()}")
                 logger.info(f"Years in filtered data: {df_agg['YEAR_PERIOD'].dt.year.unique()}")
 
-                if start_date and end_date:
-                    start = pd.to_datetime(start_date)
-                    end = pd.to_datetime(end_date)
-                    df_agg = df_agg[
-                        (df_agg['YEAR_PERIOD'].dt.to_timestamp() >= start) &
-                        (df_agg['YEAR_PERIOD'].dt.to_timestamp() <= end)
-                        ]
+
 
                 year = pd.to_datetime(start_date).year if start_date else datetime.now().year
                 img_src = None
@@ -107,6 +109,8 @@ def register_callbacks(app):
             finally:
                 plt.close('all')
 
+            label_for_selected = next((opt['label'] for opt in chart_options if opt['value'] == selected_chart),
+                                      selected_chart)
             if isinstance(img_src, list):
                 images_to_return = html.Div(
                     [html.Img(src=src) for src in img_src],
@@ -116,7 +120,11 @@ def register_callbacks(app):
                 images_to_return = html.Div([
                     html.Img(src=img_src )
                 ], className="analysis-container" )
-            return images_to_return
+            images_with_heading = html.Div([
+                html.H3(f"Analysis Data for {label_for_selected}", style={"textAlign": "center", "marginTop": "20px"}),
+                images_to_return
+            ])
+            return images_with_heading
 
-        result = run_visualization()
+        result = run_visualization(selected_chart)
         return result

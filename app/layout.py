@@ -1,6 +1,6 @@
 from dash import html, dcc
 from datetime import datetime, date
-from .utils import DATA_TYPES
+from .utils import DATA_TYPES, chart_options
 
 def create_layout():
 
@@ -96,20 +96,11 @@ def create_layout():
 
             # RIGHT: Chart Selection Dropdown
             html.Div([
-                html.H2('Data Analysis'),
+                html.H2('Data Analysis', className='centered-info'),
                 dcc.Dropdown(
                     id='analysis-chart-dropdown',
-                    options=[
-                        {'label': 'Yearly Max Temperature Trends (Line chart)', 'value': 'Max Temp Trends'},
-                        {'label': 'Avg Temperature Over Years (Boxplot)', 'value': 'Temp Boxplot'},
-                        {'label': 'Snowfall Contribution by Station (Pie)', 'value': 'Snowfall Pie'},
-                        {'label': 'Total Snowfall by Station (Bar)', 'value': 'Snowfall Bar'},
-                        {'label': 'Snowfall Max Snowfalls Trends (Line chart)', 'value': 'Snowfall Trends'},
-                        {'label': 'Event Frequencies Fog, Smoke, Rain, Wind (Bar)', 'value': 'Weather Events'},
-                        {'label': 'Yearly Distributions Temp, Precip, Snow (Boxplot)', 'value': 'Yearly Distributions'},
-                        {'label': 'Correlation Heatmap', 'value': 'Correlation Heatmap'},
-                    ],
-                    value='Max Temp Trends',
+                    options=chart_options,
+                    placeholder='Select a chart...',
                     clearable=False,
                     style={'minWidth': '250px'},
                     maxHeight=550
@@ -131,15 +122,23 @@ def create_layout():
         html.Div(id='status-container', style={'marginTop': '20px'}),
         # Results Display
         dcc.Loading(
+            id='loading-analysis',
+            type='default',
+            color='#119DFF',
+            children=html.Div(id='analysis-results'),
+            style={'marginBottom': '20px'}
+        ),
+        dcc.Loading(
             id='main-loading',
             type='default',
             color='#119DFF',
             fullscreen=False,
             children=[
+                # html.Div(id='analysis-results'),
                 html.Div(id='results-container', style={'marginTop': '20px'}),
                 # Visualization Section (hidden until data is loaded)
                 html.Div(id='visualization-container', style={'display': 'none'}, children=[
-                    html.H2(id='dashboard-title', style={'textAlign': 'center'}),
+                    html.H2(id='dashboard-title', className='centered-info'),
 
                     html.Div([
                         dcc.Dropdown(
@@ -150,7 +149,7 @@ def create_layout():
                             clearable=False,
                             style={'width': '100%'}
                         ),
-                    ], style={'width': '48%', 'margin': '20px auto'}),
+                    ], style={'width': '48%', 'margin': '10px auto'}),
 
                     dcc.DatePickerRange(
                         id='date-range',
@@ -161,12 +160,12 @@ def create_layout():
                         display_format='YYYY-MM-DD',
                         month_format='MMMM YYYY',
                         minimum_nights=0,
-                        clearable=True
+                        clearable=True,
+                        style={'margin': '5px 0',}
                     ),
                     dcc.Graph(id='weather-graph'),
                     dcc.Graph(id='precip-trend')
-                ]
-                )
+                ]),
             ],
             style={'position': 'relative', 'minHeight': '300px', 'backgroundColor': 'transparent'}
         ),

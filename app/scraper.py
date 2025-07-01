@@ -38,7 +38,6 @@ def init_driver():
             chrome_options.add_argument("--no-sandbox")
             chrome_options.add_argument("--disable-dev-shm-usage")
             chrome_options.add_argument("--disable-gpu")
-            DOWNLOAD_DIR = os.path.abspath(RAW_DATA_DIR)
         else:
             chrome_options.add_argument("--incognito")
         chrome_options.add_experimental_option("prefs", {
