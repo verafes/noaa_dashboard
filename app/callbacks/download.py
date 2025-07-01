@@ -5,7 +5,7 @@ import os
 from dash import html, Input, Output, State, no_update
 
 from ..scraper import scrape_and_download
-from ..utils import get_data_type_label, format_status_message
+from ..utils import format_status_message
 from ..logger import logger
 
 

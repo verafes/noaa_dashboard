@@ -1,7 +1,7 @@
 import os
 from dash import html, Input, Output
 
-from app.utils import PROJECT_ROOT, RAW_DATA_DIR, PROCESSED_DATA_DIR, format_status_message
+from app.utils import RAW_DATA_DIR, PROCESSED_DATA_DIR, format_status_message
 from app.data_processing.data_cleaner import clean_single_csv, get_latest_csv_filename
 from app.logger import logger
 
@@ -36,4 +36,3 @@ def register_callbacks(app):
         except Exception as e:
             logger.error(f"Cleaning failed: {e}")
             return html.Div(format_status_message(f"Error during cleaning: {e}", "error"))
-
