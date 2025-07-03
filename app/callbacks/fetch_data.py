@@ -1,3 +1,5 @@
+import os
+from datetime import datetime
 import dash
 from dash import html, Input, Output, State
 
@@ -6,9 +8,12 @@ import pandas as pd
 from ..cache import cache_exists, load_from_cache, save_to_cache
 from ..data_processing.data_cleaner import clean_data
 from ..scraper import scrape_and_download
-from ..utils import get_data_type_label, format_status_message
+from ..utils import get_data_type_label, format_status_message, set_min_start_date
 from ..logger import logger
+from dotenv import load_dotenv
+load_dotenv()
 
+MIN_START_DATE = os.getenv('MIN_START_DATE') # MIN_START_DATE=1950-01-01 in env
 
 # This updates the dashboard - called when submit-button is clicked
 def register_callbacks(app):
@@ -52,6 +57,10 @@ def register_callbacks(app):
             logger.info("[RESET] Reset button triggered inside update_dashboard")
             return None, None, {'display': 'none'}, None
 
+        # set MIN_START_DATE form env
+        print("MIN START DATE", MIN_START_DATE, type(MIN_START_DATE))
+        start_date = set_min_start_date(start_date, MIN_START_DATE)
+        logger.info(f"Start date is set to {start_date} to fetch")
         # 3. Always call scrape_and_download first
         logger.info(f"Fetching data for {city_name} ({data_type})...")
         csv_url = scrape_and_download(city_name, data_type, start_date, end_date)

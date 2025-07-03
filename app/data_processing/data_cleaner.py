@@ -5,7 +5,10 @@ import pandas as pd
 
 from app.utils import RAW_DATA_DIR, PROCESSED_DATA_DIR, get_latest_csv_filename
 from app.logger import logger
+from dotenv import load_dotenv
+load_dotenv()
 
+MIN_START_DATE = os.getenv('MIN_START_DATE')
 input_dir=RAW_DATA_DIR
 output_dir=PROCESSED_DATA_DIR
 
@@ -68,12 +71,12 @@ def clean_data(df: pd.DataFrame) -> pd.DataFrame:
     df.dropna(subset=['DATE'], inplace=True)
     logger.info(f"DATE column converted to datetime. Valid dates count: {df['DATE'].notna().sum()}")
 
-    # Remove rows with DATE before 1930
+    # Remove rows with DATE before MIN_START_DATE
     before = len(df)
-    df = df[df['DATE'] >= pd.Timestamp("1930-01-01")]
+    df = df[df['DATE'] >= pd.Timestamp(MIN_START_DATE)]
     removed = before - len(df)
     if removed > 0:
-        logger.info(f"[CLEAN] Removed {removed} rows with DATE before 1930.")
+        logger.info(f"[CLEAN] Removed {removed} rows with DATE before {MIN_START_DATE}.")
 
     # Fill 'TAVG' with average of 'TMAX' and 'TMIN'
     if all(col in df.columns for col in ['TMAX', 'TMIN']):

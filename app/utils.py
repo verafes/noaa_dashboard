@@ -1,4 +1,5 @@
 import os
+from datetime import datetime
 import pandas as pd
 from dash import html
 import plotly.graph_objects as go
@@ -166,6 +167,7 @@ chart_options = [
     {'label': 'Correlation Heatmap', 'value': 'Correlation Heatmap'},
 ]
 
+# Helper Functions
 def get_vis_config(data_type):
     """Get visualization config for given data type with fallback to default"""
     config = copy.deepcopy(VIS_CONFIG.get(data_type, VIS_CONFIG['default']))
@@ -195,7 +197,6 @@ def create_empty_figure(message):
     )
     return fig
 
-# Helper Functions
 def get_data_type_label(code):
     """
     Convert NOAA code to human-readable label.
@@ -233,6 +234,13 @@ def validate_inputs(city_name, data_type):
     if data_type not in [item['value'] for item in DATA_TYPES]:
         return False
     return True
+
+def set_min_start_date(start_date, min_start_str):
+    """Return start_date if it's on/after min_start_str, else return min_start_str."""
+    min_start = datetime.strptime(min_start_str, "%Y-%m-%d").date()
+    if start_date is None or datetime.strptime(start_date, "%Y-%m-%d").date() < min_start:
+        return min_start.isoformat()
+    return start_date
 
 def format_status_message(msg, msg_type="info"):
     """Style messages with consistent formatting"""
