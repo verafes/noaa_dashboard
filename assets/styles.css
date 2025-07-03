@@ -23,7 +23,7 @@ h1 {
 }
 
 h2 {
-    margin: 0 0 0.5rem 0;
+    margin: 0 0 0.7rem 0;
 }
 
 h4 {
@@ -163,7 +163,7 @@ h4 {
   font-style: italic;
   color: #555;
   display: block;
-  margin-top: 2px;
+  margin: 5px 0;
 }
 
 .analysis-container {
@@ -176,7 +176,7 @@ h4 {
 .analysis-container img,
 .responsive-img {
   height: auto;
-  display: block;
+  display: note-text;
   margin: 10px auto;
   box-sizing: border-box;
 }

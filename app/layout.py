@@ -70,7 +70,6 @@ def create_layout():
                     placeholder='Select year (e.g., 2020)'
                 ),
                 html.Div([
-                    # html.Label('End Date (optional):'),
                     dcc.DatePickerSingle(
                         id='end-date',
                         display_format='YYYY-MM-DD',
@@ -116,38 +115,42 @@ def create_layout():
                 html.Button('Visualize Data', id='visualize-button',
                             className='Button', n_clicks=0, style={'marginTop': '20px', 'marginBottom': '10px'}),
                 html.Br(),
-                html.P(['Note: After clicking the', html.Span('Visualize Data', style={'font-weight': 'bold'}),
-                           'button, please wait while the data is retrieved and the visualization is generated.'], className='note'),
-                html.Br() ,
+                html.P(['Note: After clicking the ', html.Span('Visualize Data', style={'font-weight': 'bold'}),
+                           ' button, please wait while the data is retrieved and the visualization is generated.'], className='note'),
+                html.Br(),
+                # INFO
                 html.H4('How to Use the Dashboard'),
                 html.P([
                     html.B('This is Pipeline: '),
                     ' Scrape → CSV → Clean → SQLite Import → Analyze → Visualize'
                 ], className='note'),
-                html.P('1. Enter the full city and state and select a data type.', className='note'),
-                html.P('2. Set date range (optional). Leave blank to use all available data.', className='note'),
+                html.P('1. Enter the city and state, separated by a comma. Missing comma or incorrect state may cause no results.',
+                       className='note'),
+                html.P(
+                    '2. Select a data type. ', className='note'),
+                html.P('3. Set date range (optional). Leave blank to use all available data.', className='note'),
                 html.P([
-                    '3. Click ',
+                    '4. Click ',
                     html.Span('Download Data', style={'fontWeight': 'bold'}),
                     ' to save the raw CSV file locally.'
                 ], className='note'),
                 html.P([
-                    '4. Click ',
+                    '5. Click ',
                     html.Span('Submit', style={'font-weight': 'bold'}),
                     ' to fetch NOAA data and generate the table and charts for this location.'
                 ], className='note'),
                 html.P([
-                    '5. Click ',
+                    '6. Click ',
                     html.Span('Clean data', style={'font-weight': 'bold'}),
                     ' to prepare the data for database import.'
                 ], className='note'),
                 html.P([
-                    '6. Click ',
+                    '7. Click ',
                     html.Span('Import to DB', style={'font-weight': 'bold'}),
                     ' to save the cleaned data into your local SQLite database.'
                 ], className='note'),
                 html.P([
-                    '7. After importing to DB, use the ',
+                    '8. After importing to DB, use the ',
                     html.Span('Data Analysis', style={'fontWeight': 'bold'}),
                     ' panel to generate aggregated views across stations and weather metrics.',
                 ], className='note'),
@@ -155,7 +158,12 @@ def create_layout():
                     'Tip: Use the ',
                     html.Span('Date Range', style={'font-style': 'italic'}),
                     ' filter below charts to focus on specific periods.'
-                ], className='note')
+                ], className='note'),
+                html.P([
+                    'Weather Dashboard © 2025 Vera Fesianava | Data source: ',
+                    html.A('NOAA Daily Summaries',
+                           href='https://www.ncei.noaa.gov/access/search/data-search/daily-summaries', target='_blank')
+                ], style={'fontSize': '11px', 'color': 'gray', 'marginTop': '20px', 'whiteSpace': 'nowrap'})
                 ], style={'flex': '1', 'paddingRight': '30px', 'marginTop': '0' }),
         ], style={
             'display': 'flex',
@@ -167,7 +175,8 @@ def create_layout():
         html.Div(id='error-container', style={'marginTop': '20px'}),
         # status message
         html.Div(id='status-container', style={'marginTop': '20px'}),
-        # Results Display
+        # == Results Display ==
+        # Analysis Section
         dcc.Loading(
             id='loading-analysis',
             type='default',
@@ -175,13 +184,13 @@ def create_layout():
             children=html.Div(id='analysis-results'),
             style={'marginBottom': '20px'}
         ),
+        # One Location Section
         dcc.Loading(
             id='main-loading',
             type='default',
             color='#119DFF',
             fullscreen=False,
             children=[
-                # html.Div(id='analysis-results'),
                 html.Div(id='results-container', style={'marginTop': '20px'}),
                 # Visualization Section (hidden until data is loaded)
                 html.Div(id='visualization-container', style={'display': 'none'}, children=[
@@ -200,7 +209,7 @@ def create_layout():
 
                     dcc.DatePickerRange(
                         id='date-range',
-                        min_date_allowed=date(1941, 1, 1),
+                        min_date_allowed=date(1950, 1, 1),
                         max_date_allowed=datetime.now(),
                         start_date=None,
                         end_date=None,

@@ -13,12 +13,13 @@ from ..logger import logger
 from dotenv import load_dotenv
 load_dotenv()
 
-MIN_START_DATE = os.getenv('MIN_START_DATE') # MIN_START_DATE=1950-01-01 in env
+MIN_START_DATE = os.getenv('MIN_START_DATE')
 
 # This updates the dashboard - called when submit-button is clicked
 def register_callbacks(app):
     @app.callback(
-        [Output('results-container', 'children', allow_duplicate=True),
+        [Output('analysis-results', 'children', allow_duplicate=True),
+         Output('results-container', 'children', allow_duplicate=True),
          Output('data-store', 'data', allow_duplicate=True),
          Output('visualization-container', 'style'),
          Output('error-container', 'children'),
@@ -44,7 +45,7 @@ def register_callbacks(app):
         if not n_clicks or not all([city_name, data_type]):
             logger.warning("[VALIDATION] Missing required inputs: city or data_type")
             return (
-                html.Div(""),
+                html.Div(""), html.Div(""),
                 dash.no_update,
                 {'display': 'none'},
                 format_status_message("Please fill city and data type fields", "error"),
@@ -69,6 +70,7 @@ def register_callbacks(app):
         if not csv_url.endswith('.csv'):
             logger.error(f"[FETCH ERROR] Failed to get CSV URL, got message: {csv_url}")
             return (
+                    html.Div(""),
                     html.Div("", style={'color': 'red'}),
                     dash.no_update,
                     {'display': 'none'},
@@ -99,6 +101,7 @@ def register_callbacks(app):
                     logger.info(f"[CACHE] Saved data to cache for {city_name} ({data_type})")
                 except pd.errors.EmptyDataError:
                     return (
+                        None,
                         html.Div(f"Error: Downloaded file is empty", className="error-message"),
                         dash.no_update,
                         {'display': 'none'},
@@ -107,6 +110,7 @@ def register_callbacks(app):
                     )
                 except pd.errors.ParserError:
                     return (
+                        None,
                         html.Div(f"Error: Could not parse downloaded file", className="error-message"),
                         dash.no_update,
                         {'display': 'none'},
@@ -115,6 +119,7 @@ def register_callbacks(app):
                     )
                 except Exception as e:
                     return (
+                        None,
                         html.Div(f"Unexpected error: {str(e)}", className="error-message"),
                         dash.no_update,
                         {'display': 'none'},
@@ -147,6 +152,7 @@ def register_callbacks(app):
                 if df.empty:
                     logger.warning("[FILTER] No data available after filtering by date range")
                     return (
+                        None,
                         html.Div(f"Fetched data for location: {city_name}, data type: {data_type}", style={'margin': '20px, 0'}),
                         dash.no_update,
                         {'display': 'none'},
@@ -178,7 +184,7 @@ def register_callbacks(app):
             logger.debug(f"[DATA] Required columns present: {required_cols.issubset(df.columns)}")
 
             results = html.Div([
-                html.H3(f"Weather Data for {city_name}"),
+                html.H3(f"Weather Data for {city_name.upper()}"),
                 html.P(f"Showing {get_data_type_label(data_type)} data{date_range_text}"),
                 html.P(f"Data points: {len(df)}", className='centered-info'),
                 html.P(f"Date range: {df['DATE'].min().date()} to {df['DATE'].max().date()}"),
@@ -190,6 +196,7 @@ def register_callbacks(app):
                 )
             ], className='centered-info')
             return (
+                None,
                 results,  # Filled results container
                 df.to_dict('records'),  # Store processed data
                 viz_style,  # Show visualization

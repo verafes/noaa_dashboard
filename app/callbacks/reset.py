@@ -14,7 +14,9 @@ def register_callbacks(app):
          Output('error-container', 'children', allow_duplicate=True),
          Output('data-store', 'data'),
          Output('status-container', 'children', allow_duplicate=True),
-         Output('visualization-container', 'style', allow_duplicate=True)],
+         Output('visualization-container', 'style', allow_duplicate=True),
+         Output('analysis-results', 'style', allow_duplicate=True)
+         ],
         Input('reset-button', 'n_clicks'),
         prevent_initial_call=True,
     )
@@ -32,7 +34,8 @@ def register_callbacks(app):
                 None,  # error-container
                 None,  # data-store
                 None,  # status-container
-                {'display': 'none'}  # visualization-container
+                {'display': 'none'},  # visualization-container
+                {'display': 'none'}, # analysis-results container
             )
         raise exceptions.PreventUpdate
 
