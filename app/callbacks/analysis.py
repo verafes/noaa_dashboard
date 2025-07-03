@@ -4,7 +4,6 @@ from dash import html, Input, Output, State
 import matplotlib
 
 from app.utils import format_status_message, chart_options
-from app.utils import DB_PATH, TABLE_NAME
 
 matplotlib.use('Agg')
 from matplotlib import pyplot as plt
@@ -13,7 +12,7 @@ from datetime import datetime
 
 
 from app.data_processing.data_analysis import (
-    load_data_from_db,
+    get_weather_data,
     aggregate_weather_conditions,
     aggregate_by_station_and_time,
     plot_max_temperature_trends,
@@ -22,7 +21,7 @@ from app.data_processing.data_analysis import (
     plot_snowfall_trends,
     label_map, plot_yearly_distributions,
     plot_weather_correlation_heatmap, prepare_event_flags,
-    plot_aggregated_weather_event_frequencies
+    plot_aggregated_weather_event_frequencies,
 )
 
 from app.logger import logger
@@ -47,7 +46,7 @@ def register_callbacks(app):
                 logger.info("Starting weather data analysis...")
 
                 df = None
-                df_weather = load_data_from_db(DB_PATH, TABLE_NAME)
+                df_weather = get_weather_data()
                 logger.info(f"Loaded weather data: {len(df_weather)} records")
                 logger.info("Checking for missing values:")
                 logger.info(f"\n{df_weather.isna().sum()}")
@@ -65,8 +64,6 @@ def register_callbacks(app):
 
                 logger.info(f"Stations in filtered data: {df_agg['NAME'].nunique()}")
                 logger.info(f"Years in filtered data: {df_agg['YEAR_PERIOD'].dt.year.unique()}")
-
-
 
                 year = pd.to_datetime(start_date).year if start_date else datetime.now().year
                 img_src = None
@@ -113,12 +110,12 @@ def register_callbacks(app):
                                       selected_chart)
             if isinstance(img_src, list):
                 images_to_return = html.Div(
-                    [html.Img(src=src) for src in img_src],
+                    [html.Img(src=src, className="responsive-img") for src in img_src],
                     className="analysis-container"
                 )
             else:
                 images_to_return = html.Div([
-                    html.Img(src=img_src )
+                    html.Img(src=img_src, className="responsive-img")
                 ], className="analysis-container" )
             images_with_heading = html.Div([
                 html.H3(f"Analysis Data for {label_for_selected}", style={"textAlign": "center", "marginTop": "20px"}),
