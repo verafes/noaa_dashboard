@@ -1,3 +1,5 @@
+import os
+from datetime import datetime
 import dash
 from dash import html, Input, Output, State
 
@@ -6,14 +8,18 @@ import pandas as pd
 from ..cache import cache_exists, load_from_cache, save_to_cache
 from ..data_processing.data_cleaner import clean_data
 from ..scraper import scrape_and_download
-from ..utils import get_data_type_label, format_status_message
+from ..utils import get_data_type_label, format_status_message, set_min_start_date
 from ..logger import logger
+from dotenv import load_dotenv
+load_dotenv()
 
+MIN_START_DATE = os.getenv('MIN_START_DATE')
 
 # This updates the dashboard - called when submit-button is clicked
 def register_callbacks(app):
     @app.callback(
-        [Output('results-container', 'children', allow_duplicate=True),
+        [Output('analysis-results', 'children', allow_duplicate=True),
+         Output('results-container', 'children', allow_duplicate=True),
          Output('data-store', 'data', allow_duplicate=True),
          Output('visualization-container', 'style'),
          Output('error-container', 'children'),
@@ -39,7 +45,7 @@ def register_callbacks(app):
         if not n_clicks or not all([city_name, data_type]):
             logger.warning("[VALIDATION] Missing required inputs: city or data_type")
             return (
-                html.Div(""),
+                html.Div(""), html.Div(""),
                 dash.no_update,
                 {'display': 'none'},
                 format_status_message("Please fill city and data type fields", "error"),
@@ -52,6 +58,10 @@ def register_callbacks(app):
             logger.info("[RESET] Reset button triggered inside update_dashboard")
             return None, None, {'display': 'none'}, None
 
+        # set MIN_START_DATE form env
+        print("MIN START DATE", MIN_START_DATE, type(MIN_START_DATE))
+        start_date = set_min_start_date(start_date, MIN_START_DATE)
+        logger.info(f"Start date is set to {start_date} to fetch")
         # 3. Always call scrape_and_download first
         logger.info(f"Fetching data for {city_name} ({data_type})...")
         csv_url = scrape_and_download(city_name, data_type, start_date, end_date)
@@ -60,6 +70,7 @@ def register_callbacks(app):
         if not csv_url.endswith('.csv'):
             logger.error(f"[FETCH ERROR] Failed to get CSV URL, got message: {csv_url}")
             return (
+                    html.Div(""),
                     html.Div("", style={'color': 'red'}),
                     dash.no_update,
                     {'display': 'none'},
@@ -90,6 +101,7 @@ def register_callbacks(app):
                     logger.info(f"[CACHE] Saved data to cache for {city_name} ({data_type})")
                 except pd.errors.EmptyDataError:
                     return (
+                        None,
                         html.Div(f"Error: Downloaded file is empty", className="error-message"),
                         dash.no_update,
                         {'display': 'none'},
@@ -98,6 +110,7 @@ def register_callbacks(app):
                     )
                 except pd.errors.ParserError:
                     return (
+                        None,
                         html.Div(f"Error: Could not parse downloaded file", className="error-message"),
                         dash.no_update,
                         {'display': 'none'},
@@ -106,6 +119,7 @@ def register_callbacks(app):
                     )
                 except Exception as e:
                     return (
+                        None,
                         html.Div(f"Unexpected error: {str(e)}", className="error-message"),
                         dash.no_update,
                         {'display': 'none'},
@@ -138,6 +152,7 @@ def register_callbacks(app):
                 if df.empty:
                     logger.warning("[FILTER] No data available after filtering by date range")
                     return (
+                        None,
                         html.Div(f"Fetched data for location: {city_name}, data type: {data_type}", style={'margin': '20px, 0'}),
                         dash.no_update,
                         {'display': 'none'},
@@ -169,9 +184,9 @@ def register_callbacks(app):
             logger.debug(f"[DATA] Required columns present: {required_cols.issubset(df.columns)}")
 
             results = html.Div([
-                html.H3(f"Weather Data for {city_name}"),
+                html.H3(f"Weather Data for {city_name.upper()}"),
                 html.P(f"Showing {get_data_type_label(data_type)} data{date_range_text}"),
-                html.P(f"Data points: {len(df)}"),
+                html.P(f"Data points: {len(df)}", className='centered-info'),
                 html.P(f"Date range: {df['DATE'].min().date()} to {df['DATE'].max().date()}"),
                 dash.dash_table.DataTable(
                     data=df.to_dict('records'),
@@ -179,8 +194,9 @@ def register_callbacks(app):
                     page_size=10,
                     style_table={'overflowX': 'auto'}
                 )
-            ])
+            ], className='centered-info')
             return (
+                None,
                 results,  # Filled results container
                 df.to_dict('records'),  # Store processed data
                 viz_style,  # Show visualization

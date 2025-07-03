@@ -2,17 +2,24 @@ import os
 import io
 import base64
 import sqlite3
-from dash import html
 import pandas as pd
 
-import matplotlib
-# matplotlib.use('TkAgg')
+import plotly.io as pio
 from matplotlib import pyplot as plt
 import plotly.express as px
 import seaborn as sns
 
 from app.logger import logger
 from app.utils import DB_DIR, DB_PATH, DB_NAME, TABLE_NAME, label_map
+
+# cache data
+_cached_weather_data = None
+
+def get_weather_data():
+    global _cached_weather_data
+    if _cached_weather_data is None:
+        _cached_weather_data = load_data_from_db(DB_PATH, TABLE_NAME)
+    return _cached_weather_data
 
 cols = [
     'TMIN', 'TAVG', 'TMAX', 'PRCP', 'SNOW', 'TSUN',
@@ -33,13 +40,18 @@ def load_data_from_db(db_path, table_name):
     conn.close()
     return df
 
-def fig_to_dash_image(fig, width="100%"):
+def fig_to_dash_image(fig):
     """Convert a matplotlib figure to Dash HTML image."""
     buf = io.BytesIO()
     fig.savefig(buf, format="png", bbox_inches='tight')
     buf.seek(0)
     encoded = base64.b64encode(buf.read()).decode("utf-8")
     buf.close()
+    return f"data:image/png;base64,{encoded}"
+
+def plotly_fig_to_base64_img(fig):
+    img_bytes = pio.to_image(fig, format='png')
+    encoded = base64.b64encode(img_bytes).decode('utf-8')
     return f"data:image/png;base64,{encoded}"
 
 def get_label(col):
@@ -134,6 +146,7 @@ def plot_precipitation_and_snow(df_grouped, station_name):
     plt.xlabel("Year")
     plt.ylabel("Inches")
     plt.legend()
+    # plt.show()
     fig = plt.gcf()
     plt.close()
     return fig_to_dash_image(fig)
@@ -153,6 +166,7 @@ def plot_weather_events(df_grouped, station_name):
     plt.xlabel("Year")
     plt.ylabel("Event Counts")
     plt.legend()
+    # plt.show()
     fig = plt.gcf()
     plt.close()
     return fig_to_dash_image(fig)
@@ -172,6 +186,7 @@ def plot_snowfall_trends(df_grouped, stations):
     plt.ylabel("Total Snowfall (inches)")
     plt.legend(loc='upper right', fontsize='small', ncol=2)
     plt.tight_layout()
+    # plt.show()
     fig = plt.gcf()
     plt.close()
     return fig_to_dash_image(fig)
@@ -227,6 +242,7 @@ def plot_snowfall_pie(df_grouped, year, min_threshold=0.01):
     )
 
     plt.subplots_adjust(left=0.05, right=0.7, top=0.9, bottom=0.1)
+    # fig.show()
     fig = plt.gcf()
     plt.close()
     return fig_to_dash_image(fig)
@@ -254,6 +270,7 @@ def plot_snowfall_bar(df_grouped, year):
     plt.xlabel("Station")
     plt.xticks(rotation=45, ha='right')
     plt.tight_layout()
+    # plt.show()
     fig = plt.gcf()
     plt.close()
     return fig_to_dash_image(fig)
@@ -275,6 +292,7 @@ def plot_temperature_boxplot(df_grouped, temp_col='TAVG'):
     ax.set_xlabel('Year')
     ax.set_ylabel(f'{readable_label} (°F)')
     plt.tight_layout()
+    # plt.show()
     fig = plt.gcf()
     plt.close()
     return fig_to_dash_image(fig)
@@ -328,45 +346,6 @@ def plot_station_trends(df_grouped, stations, variable, label_map, max_value=Non
         fig.show()
     except Exception as e:
         print(f"Error plotting trends: {str(e)}")
-
-# Annual Average by Column
-def plot_annual_averages(df, columns, label_map):
-    """ "Plot annual averages of selected weather features."""
-    df['YEAR'] = df['DATE'].dt.year
-    available = [col for col in columns if col in df.columns and df[col].notna().sum() > 0]
-    missing = [col for col in columns if col not in df.columns or df[col].notna().sum() == 0]
-
-    if missing:
-        logger.info(f"Skipping missing or empty columns: {missing}")
-    if not available:
-        logger.info(f"❌ No valid columns to plot.")
-        return
-
-    # Group and calculate mean
-    yearly_avg = df.groupby('YEAR')[available].agg('mean')
-    yearly_avg = yearly_avg.dropna(how='all')
-    yearly_avg = yearly_avg[(yearly_avg > 0).any(axis=1)]
-    yearly_avg = yearly_avg.reset_index()
-
-    # Reshape for Plotly (wide → long)
-    melted = yearly_avg.melt(id_vars='YEAR', value_vars=available, var_name='Variable', value_name='Average')
-
-    # Replace variable names with human-friendly labels
-    melted['Variable'] = melted['Variable'].apply(lambda c: label_map.get(c, c))
-
-    fig = px.line(
-        melted,
-        x='YEAR',
-        y='Average',
-        color='Variable',
-        title='Annual Averages of Weather Features',
-        labels={
-            'YEAR': 'Year',
-            'Average': 'Average Value',
-            'Variable': 'Weather Events'
-        }
-    )
-    fig.show()
 
 # Weather Event Frequency (for WT codes)
 def plot_weather_one_event_frequencies(df, event_cols, label_map):
@@ -438,11 +417,11 @@ def plot_aggregated_weather_event_frequencies(df, event_cols, label_map, year_fr
         x='YEAR',
         y=list(rename_map.values()),  # new human-readable column names
         title=f"Weather Event Counts per Year ({year_from or 'Start'} - {year_to or 'End'})",
-        barmode='group' # side by side bars
+        barmode='group'
     )
     fig.update_xaxes(range=[min(yearly_counts['YEAR']), max(yearly_counts['YEAR'])])
-
-    fig.show()
+    # fig.show()
+    return plotly_fig_to_base64_img(fig)
 
 def plot_yearly_distributions(df, columns, label_map):
     """Plot yearly boxplots for weather variables (spread/distribution)"""
@@ -491,18 +470,15 @@ def plot_weather_correlation_heatmap(df, columns):
     df_agg_filled = df_agg.copy()
     for col in columns:
         mean_val = df_agg_filled[col].mean()
-        df_agg_filled[col].fillna(mean_val, inplace=True)
+        df_agg_filled[col] = df_agg_filled[col].fillna(mean_val)
     df_corr = df_agg_filled[columns].corr()
-
-    # df_corr = df_agg[columns].corr()
-    # mean_value = df_corr.stack().mean()
-    # df_corr.fillna(mean_value, inplace=True)
     logger.info(df_corr)
 
     plt.figure(figsize=(10, 8))
     sns.heatmap(df_corr, annot=True, cmap='coolwarm', fmt=".2f")
     plt.title("Correlation Between Weather Features")
     plt.tight_layout()
+    # plt.show()
     fig = plt.gcf()
     plt.close()
     img_str = fig_to_dash_image(fig)
@@ -536,7 +512,6 @@ def analysis_and_visualization():
     # Boxplot for average temp distribution over years
     plot_temperature_boxplot(df_agg, temp_col='TAVG')
 
-    plot_annual_averages(df_weather, ['TSUN', 'WSFG', 'RHAV'], label_map)
     plot_aggregated_weather_event_frequencies(df_weather, ['WT01', 'WT02', 'WT08', 'WT16'], label_map)
     plot_weather_correlation_heatmap(df_weather, [
         'TMIN', 'TAVG', 'TMAX', 'PRCP', 'SNOW', 'TSUN',
@@ -547,4 +522,5 @@ def analysis_and_visualization():
 
 # -------------------------
 # analysis_and_visualization()
+# uncomment plt.show() fig.show() to run from CLI
 # py -m app.data_processing.data_analysis

@@ -1,8 +1,14 @@
+import os
 import sqlite3
+from datetime import datetime
 
 from app.utils import find_city_in_name, US_CITY_NAMES, SPECIAL_CITY_EXCEPTIONS, DB_PATH, TABLE_NAME
 from app.logger import logger
+from dotenv import load_dotenv
+load_dotenv()
 
+MIN_START_DATE = os.getenv('MIN_START_DATE')
+min_start_date = datetime.strptime(MIN_START_DATE, "%Y-%m-%d").date().isoformat()
 
 stations_list = []
 stations_str_list = []
@@ -98,23 +104,23 @@ with sqlite3.connect(DB_PATH) as conn:
     total_after = cursor.fetchone()[0]
     print(f"Remaining Total rows after cleanup (unreal temp values): {total_after}")
 
-    # First, check how many rows exist before 1930
+    # First, check how many rows exist before MIN_START_DATE
     cursor.execute("""
         SELECT COUNT(*) FROM weather_data
-        WHERE DATE < '1930-01-01'
-    """)
+        WHERE DATE < ?
+    """, (min_start_date,))
     count = cursor.fetchone()[0]
 
     if count > 0:
-        print(f"Found {count} rows with DATE before 1930. Deleting them...")
+        print(f"Found {count} rows with DATE before {MIN_START_DATE}. Deleting them...")
         cursor.execute("""
             DELETE FROM weather_data
-            WHERE DATE < '1930-01-01'
-        """)
+            WHERE DATE < ?
+        """, (min_start_date,))
         conn.commit()
         print("Old rows removed.")
     else:
-        print("No rows before 1930 found. No action needed.")
+        print("No rows before {MIN_START_DATE} found. No action needed.")
 
     query = f"""
         SELECT

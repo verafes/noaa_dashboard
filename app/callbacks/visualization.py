@@ -1,5 +1,5 @@
 # Handles creating dash_app graphs (data before analysis)
-
+import os
 import dash
 from dash import Input, Output, State
 
@@ -7,8 +7,12 @@ import pandas as pd
 import numpy as np
 import plotly.express as px
 
-from ..utils import get_data_type_label, create_empty_figure, get_vis_config, is_valid_column
+from ..utils import get_data_type_label, create_empty_figure, get_vis_config, is_valid_column, set_min_start_date
 from ..logger import logger
+from dotenv import load_dotenv
+load_dotenv()
+
+MIN_START_DATE = os.getenv('MIN_START_DATE')
 
 
 # Callback to update visualization controls
@@ -109,6 +113,10 @@ def register_callbacks(app):
             # Filter by station
             filtered = df[df['NAME'] == selected_station].copy()
             logger.info(f"Filtered data by station '{selected_station}', rows: {len(filtered)}")
+
+            # set start_date to MIN_START_DATE
+            start_date = max(pd.to_datetime(start_date), pd.to_datetime(MIN_START_DATE))
+            logger.info(f"Start date is set to minimal {start_date} for visualization")
 
             # Filter by date range
             if start_date and end_date:

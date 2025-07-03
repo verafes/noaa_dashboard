@@ -1,15 +1,17 @@
+import os
 import sqlite3
 import pandas as pd
-import os
 
 from app.data_processing.data_cleaner import list_csv_files, clean_single_csv
 from app.utils import RAW_DATA_DIR, PROCESSED_DATA_DIR, DB_DIR, DB_PATH, DB_NAME, TABLE_NAME, get_latest_csv_filename
 from app.logger import logger
+from dotenv import load_dotenv
+load_dotenv()
 
+MIN_START_DATE = os.getenv('MIN_START_DATE') # MIN_START_DATE=1950-01-01 in env
 input_dir = RAW_DATA_DIR
 output_dir = PROCESSED_DATA_DIR
 logger.info(f"Input folder: {input_dir}")
-
 
 # Column Definitions
 base_cols = ['STATION', 'DATE', 'LATITUDE', 'LONGITUDE', 'ELEVATION', 'NAME']
@@ -99,6 +101,11 @@ def import_csv_to_db(csv_path: str = None) -> tuple[bool, str]:
             for csv_file in csv_files:
                 logger.info(f"Importing file: {csv_file}")
                 df = pd.read_csv(csv_file)
+
+                if 'DATE' in df.columns:
+                    df['DATE'] = pd.to_datetime(df['DATE'], errors='coerce')
+                    df = df[df['DATE'] >= pd.Timestamp(MIN_START_DATE)]
+                    logger.info(f"Filtered data to dates >= {MIN_START_DATE}. Remaining rows: {len(df)}")
 
                 for col in keep_cols:
                     if col not in df.columns:
