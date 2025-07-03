@@ -10,6 +10,10 @@ from app.utils import IS_RENDER
 from dotenv import load_dotenv
 load_dotenv()
 
+# Auto-create DB if missing
+from app.utils import DB_PATH
+from app.data_processing.data_to_db import get_all_cleaned_csv_files, import_csv_to_db
+
 # Environment settings
 os.environ['DASH_DEBUG'] = 'False'
 os.environ['DASH_HOT_RELOAD'] = 'False'
@@ -31,6 +35,21 @@ logger.info(f"[PATHS] DOWNLOAD_DIR set to: {DOWNLOAD_DIR}")
 def create_dash_app():
     """Creates and configures the Dash application"""
     logger.info("[APP] Initializing Dash NOAA Weather Dashboard...")
+
+    if not os.path.exists(DB_PATH):
+        logger.info(f"[DB] Database not found at {DB_PATH}, generating from cleaned CSVs...")
+        try:
+            cleaned_csvs = get_all_cleaned_csv_files()
+            if cleaned_csvs:
+                for csv_file in cleaned_csvs:
+                    import_csv_to_db(csv_file)
+            else:
+                logger.info(f"[DATA] No cleaned CSV files found to build database.")
+        except Exception as e:
+            logger.error(f"[DB] An error occurred while generating the database: {e}")
+    else:
+        logger.info(f"[DB] Database already exists at {DB_PATH}")
+
     app = Dash(
         __name__,
         assets_folder='../assets',

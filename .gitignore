@@ -35,3 +35,4 @@ draft.txt
 !data/processed/.gitkeep
 db/*
 !db/.gitkeep
+data/processed/*.csv
