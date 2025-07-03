@@ -4,13 +4,17 @@ from .utils import DATA_TYPES, chart_options
 
 def create_layout():
 
-    year_options = [{'label': str(y), 'value': y} for y in range(datetime.now().year, 1940, -1)]
+    year_options = [{'label': str(y), 'value': y} for y in range(datetime.now().year, 1950, -1)]
 
     return html.Div([
         dcc.Download(id='download-data'),
         dcc.Store(id='data-store'),
 
         html.H1('NOAA Weather Dashboard'),
+        html.H4(
+                'Analyze and visualize historical daily weather conditions with NOAA’s official data',
+            className='subhead'
+        ),
         # Two-column section: Left = Data Form, Right = Chart Dropdown
         html.Div([
             # LEFT: NOAA Form Input Form
@@ -32,6 +36,8 @@ def create_layout():
                 ),
 
                 html.Label('Start Date (optional):', className='date-label'),
+                html.Small('Please note: selecting only the year won’t update the date — you need to pick a full date.',
+                           className='note-text'),
                 dcc.Dropdown(
                     id='start-year-selector',
                     value=None,
@@ -47,7 +53,7 @@ def create_layout():
                         display_format='YYYY-MM-DD',
                         month_format='MMMM YYYY',
                         placeholder='Select start date',
-                        min_date_allowed=datetime(1941, 1, 1),
+                        min_date_allowed=datetime(1950, 1, 1),
                         max_date_allowed=datetime.now(),
                         initial_visible_month=datetime.now(), # get here year user selected
                         clearable=True,
@@ -55,6 +61,8 @@ def create_layout():
                     ),
                 ]),
                 html.Label('End Date (optional):', className='date-label'),
+                html.Small('Please note: selecting only the year won’t update the date — you need to pick a full date.',
+                           className='note-text'),
                 dcc.Dropdown(
                     id='end-year-selector',
                     value=None,
@@ -88,15 +96,15 @@ def create_layout():
                 html.Label([
                     'Note: After submitting form, please wait while the data is retrieved and the visualization is generated.',
                     html.Br(),html.Br(),
-                    'NOAA daily summaries data might be unavailable (usially Thursday from 12:00 PM to Friday 12:00 PM) due to scheduled maintenance.'
+                    'NOAA daily summaries data might be unavailable due to scheduled maintenance.'
                 ], style={'margin': '10px 0'}),
                 ], id='left-form-wrapper', style={'display': 'flex', 'flexDirection': 'column'}),
             ],
-            style={'flex': '2', 'paddingRight': '20px', 'display': 'flex', 'flexDirection': 'column'}),
+            style={'flex': '2', 'paddingLeft': '20px', 'paddingRight': '20px', 'display': 'flex', 'flexDirection': 'column'}),
 
             # RIGHT: Chart Selection Dropdown
             html.Div([
-                html.H2('Data Analysis', className='centered-info'),
+                html.H2('Data Analysis'),
                 dcc.Dropdown(
                     id='analysis-chart-dropdown',
                     options=chart_options,
@@ -106,9 +114,48 @@ def create_layout():
                     maxHeight=550
                 ),
                 html.Button('Visualize Data', id='visualize-button',
-                            className='Button', n_clicks=0, style={'marginTop': '20px', 'marginBottom': '20px'}),
+                            className='Button', n_clicks=0, style={'marginTop': '20px', 'marginBottom': '10px'}),
                 html.Br(),
-                html.Label('Note: After clicking the button, please wait while the data is retrieved and the visualization is generated.'),
+                html.P(['Note: After clicking the', html.Span('Visualize Data', style={'font-weight': 'bold'}),
+                           'button, please wait while the data is retrieved and the visualization is generated.'], className='note'),
+                html.Br() ,
+                html.H4('How to Use the Dashboard'),
+                html.P([
+                    html.B('This is Pipeline: '),
+                    ' Scrape → CSV → Clean → SQLite Import → Analyze → Visualize'
+                ], className='note'),
+                html.P('1. Enter the full city and state and select a data type.', className='note'),
+                html.P('2. Set date range (optional). Leave blank to use all available data.', className='note'),
+                html.P([
+                    '3. Click ',
+                    html.Span('Download Data', style={'fontWeight': 'bold'}),
+                    ' to save the raw CSV file locally.'
+                ], className='note'),
+                html.P([
+                    '4. Click ',
+                    html.Span('Submit', style={'font-weight': 'bold'}),
+                    ' to fetch NOAA data and generate the table and charts for this location.'
+                ], className='note'),
+                html.P([
+                    '5. Click ',
+                    html.Span('Clean data', style={'font-weight': 'bold'}),
+                    ' to prepare the data for database import.'
+                ], className='note'),
+                html.P([
+                    '6. Click ',
+                    html.Span('Import to DB', style={'font-weight': 'bold'}),
+                    ' to save the cleaned data into your local SQLite database.'
+                ], className='note'),
+                html.P([
+                    '7. After importing to DB, use the ',
+                    html.Span('Data Analysis', style={'fontWeight': 'bold'}),
+                    ' panel to generate aggregated views across stations and weather metrics.',
+                ], className='note'),
+                html.P([
+                    'Tip: Use the ',
+                    html.Span('Date Range', style={'font-style': 'italic'}),
+                    ' filter below charts to focus on specific periods.'
+                ], className='note')
                 ], style={'flex': '1', 'paddingRight': '30px', 'marginTop': '0' }),
         ], style={
             'display': 'flex',
