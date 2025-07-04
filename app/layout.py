@@ -28,6 +28,7 @@ def create_layout():
                     type='text',  value='',
                     placeholder='City Name (e.g., New York, NY)'
                 ),
+                html.Label('Data Type (weather conditions):', className='date-label'),
                 dcc.Dropdown(
                     id='data-type',
                     options=DATA_TYPES,
@@ -127,7 +128,7 @@ def create_layout():
                 html.P('1. Enter the city and state, separated by a comma. Missing comma or incorrect state may cause no results.',
                        className='note'),
                 html.P(
-                    '2. Select a data type. ', className='note'),
+                    '2. Select a Data Type (weather conditions). ', className='note'),
                 html.P('3. Set date range (optional). Leave blank to use all available data.', className='note'),
                 html.P([
                     '4. Click ',
@@ -153,6 +154,11 @@ def create_layout():
                     '8. After importing to DB, use the ',
                     html.Span('Data Analysis', style={'fontWeight': 'bold'}),
                     ' panel to generate aggregated views across stations and weather metrics.',
+                ], className='note'),
+                html.P([
+                    'Tip: After selecting a location and submitting, you can change the ',
+                    html.Span('Data Type', style={'font-style': 'italic'}),
+                    ' dropdown to immediately update the visualization for other weather conditions — no need to click Submit again!'
                 ], className='note'),
                 html.P([
                     'Tip: Use the ',
@@ -194,7 +200,7 @@ def create_layout():
                 html.Div(id='results-container', style={'marginTop': '20px'}),
                 # Visualization Section (hidden until data is loaded)
                 html.Div(id='visualization-container', style={'display': 'none'}, children=[
-                    html.H2(id='dashboard-title', className='centered-info'),
+                    html.H2(id='dashboard-title', className='centered-info', style={"color": "#C99A5AFF"}),
 
                     html.Div([
                         dcc.Dropdown(

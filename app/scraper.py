@@ -38,6 +38,11 @@ def init_driver():
             chrome_options.add_argument("--no-sandbox")
             chrome_options.add_argument("--disable-dev-shm-usage")
             chrome_options.add_argument("--disable-gpu")
+            chrome_options.add_argument("--single-process") # reduces memory usage
+            chrome_options.add_argument("--disable-extensions")
+            chrome_options.add_argument("--disable-background-networking")
+            chrome_options.add_argument("--disable-sync")
+            chrome_options.add_argument("--disable-translate")
         else:
             chrome_options.add_argument("--incognito")
         chrome_options.add_experimental_option("prefs", {
@@ -46,9 +51,10 @@ def init_driver():
             "download.directory_upgrade": True,
             "safebrowsing.enabled": True
         })
+        # Suppress unnecessary logs from ChromeDriver, avoid creating log files on Render
         service = Service(log_path=os.devnull)
         driver = webdriver.Chrome(service=service, options=chrome_options)
-        os.makedirs(DOWNLOAD_DIR, exist_ok=True)
+
         logger.info("Chrome WebDriver initialized.")
     return driver
 

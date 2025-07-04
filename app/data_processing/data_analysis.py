@@ -80,7 +80,7 @@ def plot_max_temperature_trends(df_grouped, stations):
             continue
         plt.plot(station_data['YEAR_PERIOD'].dt.to_timestamp(), station_data['TMAX'], label=station)
 
-    plt.title("Yearly Max Temperature Trends by Station")
+    plt.title("Yearly Max Temperature Trends by Station", pad=15)
     plt.xlabel("Year")
     plt.ylabel("Max Temperature (°F)")
     plt.legend(loc='center left', bbox_to_anchor=(1, 0.5), fontsize='small')
@@ -123,7 +123,7 @@ def plot_temperature(df_grouped, station_name):
     plt.plot(data['YEAR_PERIOD'].dt.to_timestamp(), data['TMIN'], label='TMIN', color='blue')
     plt.plot(data['YEAR_PERIOD'].dt.to_timestamp(), data['TAVG'], label='TAVG', color='orange')
     plt.plot(data['YEAR_PERIOD'].dt.to_timestamp(), data['TMAX'], label='TMAX', color='red')
-    plt.title(f"Temperature Trends for {station_name}")
+    plt.title(f"Temperature Trends for {station_name}", pad=15)
     plt.xlabel("Year")
     plt.ylabel("Temperature (°F)")
     plt.legend()
@@ -142,7 +142,7 @@ def plot_precipitation_and_snow(df_grouped, station_name):
     plt.figure(figsize=(10, 6))
     plt.plot(data['YEAR_PERIOD'].dt.to_timestamp(), data['PRCP'], label='Precipitation (PRCP)', color='green')
     plt.plot(data['YEAR_PERIOD'].dt.to_timestamp(), data['SNOW'], label='Snowfall (SNOW)', color='cyan')
-    plt.title(f"Precipitation and Snowfall for {station_name}")
+    plt.title(f"Precipitation and Snowfall for {station_name}", pad=15)
     plt.xlabel("Year")
     plt.ylabel("Inches")
     plt.legend()
@@ -162,7 +162,7 @@ def plot_weather_events(df_grouped, station_name):
     plt.plot(data['YEAR_PERIOD'].dt.to_timestamp(), data['WT16'], label='WT16 (Weather Type 16)', color='purple')
     plt.plot(data['YEAR_PERIOD'].dt.to_timestamp(), data['WT08'], label='WT08 (Weather Type 08)', color='brown')
     plt.plot(data['YEAR_PERIOD'].dt.to_timestamp(), data['WT01'], label='WT01 (Weather Type 01)', color='black')
-    plt.title(f"Weather Events for {station_name}")
+    plt.title(f"Weather Events for {station_name}", pad=15)
     plt.xlabel("Year")
     plt.ylabel("Event Counts")
     plt.legend()
@@ -181,7 +181,7 @@ def plot_snowfall_trends(df_grouped, stations):
             continue
         plt.plot(station_data['YEAR_PERIOD'].dt.to_timestamp(), station_data['SNOW'], label=station)
 
-    plt.title("Yearly Snowfall Trends by Station")
+    plt.title("Yearly Snowfall Trends by Station", pad=15)
     plt.xlabel("Year")
     plt.ylabel("Total Snowfall (inches)")
     plt.legend(loc='upper right', fontsize='small', ncol=2)
@@ -265,7 +265,7 @@ def plot_snowfall_bar(df_grouped, year):
 
     plt.figure(figsize=(12, 6))
     snowfall_sum.plot(kind='bar', color='skyblue')
-    plt.title(f"Total Snowfall by Station in {year}")
+    plt.title(f"Total Snowfall by Station in {year}", pad=15)
     plt.ylabel("Snowfall (inches)")
     plt.xlabel("Station")
     plt.xticks(rotation=45, ha='right')
@@ -287,7 +287,7 @@ def plot_temperature_boxplot(df_grouped, temp_col='TAVG'):
         patch_artist=True,
         ax=ax
     )
-    ax.set_title(f'Distribution of {readable_label} Over Years')
+    ax.set_title(f'Distribution of {readable_label} Over Years', pad=10)
     plt.suptitle('')
     ax.set_xlabel('Year')
     ax.set_ylabel(f'{readable_label} (°F)')
@@ -420,6 +420,7 @@ def plot_aggregated_weather_event_frequencies(df, event_cols, label_map, year_fr
         barmode='group'
     )
     fig.update_xaxes(range=[min(yearly_counts['YEAR']), max(yearly_counts['YEAR'])])
+    fig.update_layout(legend_title_text='Weather Event', title_x=0.5)
     # fig.show()
     return plotly_fig_to_base64_img(fig)
 
@@ -476,7 +477,7 @@ def plot_weather_correlation_heatmap(df, columns):
 
     plt.figure(figsize=(10, 8))
     sns.heatmap(df_corr, annot=True, cmap='coolwarm', fmt=".2f")
-    plt.title("Correlation Between Weather Features")
+    plt.title("Correlation Between Weather Features", pad=15)
     plt.tight_layout()
     # plt.show()
     fig = plt.gcf()

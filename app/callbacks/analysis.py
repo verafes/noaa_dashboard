@@ -118,7 +118,7 @@ def register_callbacks(app):
                     html.Img(src=img_src, className="responsive-img")
                 ], className="analysis-container" )
             images_with_heading = html.Div([
-                html.H3(f"Analysis Data for {label_for_selected}", style={"textAlign": "center", "marginTop": "20px"}),
+                html.H3(f"Analysis Data for {label_for_selected}", style={"textAlign": "center", "marginTop": "20px", "color": "#C99A5AFF" }),
                 images_to_return
             ])
             return images_with_heading
