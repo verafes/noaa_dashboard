@@ -16,14 +16,18 @@ IS_RENDER = os.getenv("RENDER", "false").lower() == "true"
 logger.info(f"[ENV DETECTION] IS_RENDER={IS_RENDER}")
 logger.info(f"RENDER_SERVICE_ID: {os.getenv('RENDER_SERVICE_ID')}")
 
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+print("!! PROJECT_ROOT", PROJECT_ROOT)
 # Path Constants
 if IS_RENDER:
     BASE_DATA_DIR = "/tmp/data"
     DB_DIR = "/tmp/db"
+    REPO_PROCESSED_DIR = os.path.join(PROJECT_ROOT, "data", "processed")
 else:
     PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     BASE_DATA_DIR = os.path.join(PROJECT_ROOT, "data")
     DB_DIR = os.path.join(PROJECT_ROOT, "db")
+    REPO_PROCESSED_DIR = None
 
 RAW_DATA_DIR = os.path.join(BASE_DATA_DIR, "raw")
 PROCESSED_DATA_DIR = os.path.join(BASE_DATA_DIR, "processed")

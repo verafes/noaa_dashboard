@@ -6,7 +6,7 @@ from dash import Dash
 from .callbacks import register_all_callbacks
 from .logger import logger
 from .layout import create_layout
-from app.utils import IS_RENDER
+from app.utils import IS_RENDER, PROJECT_ROOT
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -15,10 +15,11 @@ from app.utils import DB_PATH
 from app.data_processing.data_to_db import get_all_cleaned_csv_files, import_csv_to_db
 
 # Environment settings
-os.environ['DASH_DEBUG'] = 'False'
-os.environ['DASH_HOT_RELOAD'] = 'False'
-os.environ['WEBSOCKET_URL'] = ''
-os.environ['NODE_OPTIONS'] = '--no-warnings'
+os.environ.setdefault('DASH_DEBUG', 'False')
+os.environ.setdefault('FLASK_ENV', 'production')
+os.environ.setdefault('NODE_ENV', 'production')
+os.environ.setdefault('DASH_HOT_RELOAD', 'False')
+os.environ.setdefault('NODE_OPTIONS', '--no-warnings')
 
 # Suppress Python warnings
 warnings.filterwarnings("ignore")
@@ -26,6 +27,7 @@ warnings.filterwarnings("ignore")
 # Ensure data directory exists
 if IS_RENDER:
     DOWNLOAD_DIR = "/tmp/data"
+    REPO_PROCESSED_DIR = os.path.join(PROJECT_ROOT, "data", "processed")
 else:
     DOWNLOAD_DIR = os.path.abspath("data")
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
@@ -56,20 +58,13 @@ def create_dash_app():
         suppress_callback_exceptions=True,
         prevent_initial_callbacks='initial_duplicate',
         update_title=None,
-        meta_tags=[{'name': 'viewport',
-        'content': 'width=device-width, initial-scale=1.0'}],
+        meta_tags=[{'name': 'viewport', 'content': 'width=device-width, initial-scale=1.0'}],
         serve_locally=True, # !important
         compress=False, # !important
         assets_ignore=r'.*\.hot-update\.js',
         include_assets_files=True,
        )
-    # Disable all development tools
-    app._hot_reload = False
-    # Disable dev tools completely
-    app.enable_dev_tools(
-        dev_tools_ui=False,
-        dev_tools_props_check=False,
-    )
+
     stations = []
 
     app.layout = create_layout()

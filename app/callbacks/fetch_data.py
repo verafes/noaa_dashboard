@@ -18,12 +18,14 @@ MIN_START_DATE = os.getenv('MIN_START_DATE')
 # This updates the dashboard - called when submit-button is clicked
 def register_callbacks(app):
     @app.callback(
-        [Output('analysis-results', 'children', allow_duplicate=True),
+        [
          Output('results-container', 'children', allow_duplicate=True),
+         Output('analysis-results', 'children', allow_duplicate=True),
          Output('data-store', 'data', allow_duplicate=True),
          Output('visualization-container', 'style'),
          Output('error-container', 'children'),
-         Output("main-loading", "type")],
+         Output("main-loading", "type")
+        ],
         [Input('submit-button', 'n_clicks')], # Only need submit button here
         [State('city-input', 'value'),
          State('data-type', 'value'),
@@ -40,12 +42,13 @@ def register_callbacks(app):
             ctx = dash.callback_context
         if not ctx.triggered:
             logger.warning("[DASHBOARD] No callback triggered")
-            return dash.no_update, dash.no_update, dash.no_update, dash.no_update, "default"
+            return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, "default"
         # 2. Validate required inputs
         if not n_clicks or not all([city_name, data_type]):
             logger.warning("[VALIDATION] Missing required inputs: city or data_type")
             return (
-                html.Div(""), html.Div(""),
+                html.Div(""),
+                html.Div(""),
                 dash.no_update,
                 {'display': 'none'},
                 format_status_message("Please fill city and data type fields", "error"),
@@ -56,7 +59,7 @@ def register_callbacks(app):
         trigger_id = ctx.triggered_id if hasattr(ctx, 'triggered_id') else dash.ctx.triggered_id
         if trigger_id == 'reset-button':
             logger.info("[RESET] Reset button triggered inside update_dashboard")
-            return None, None, {'display': 'none'}, None
+            return None, None, None, {'display': 'none'}, None, "default"
 
         # set MIN_START_DATE form env
         print("MIN START DATE", MIN_START_DATE, type(MIN_START_DATE))
@@ -70,8 +73,8 @@ def register_callbacks(app):
         if not csv_url.endswith('.csv'):
             logger.error(f"[FETCH ERROR] Failed to get CSV URL, got message: {csv_url}")
             return (
-                    html.Div(""),
                     html.Div("", style={'color': 'red'}),
+                    html.Div(""),
                     dash.no_update,
                     {'display': 'none'},
                     format_status_message(csv_url, "error"),
@@ -101,8 +104,8 @@ def register_callbacks(app):
                     logger.info(f"[CACHE] Saved data to cache for {city_name} ({data_type})")
                 except pd.errors.EmptyDataError:
                     return (
-                        None,
                         html.Div(f"Error: Downloaded file is empty", className="error-message"),
+                        None,
                         dash.no_update,
                         {'display': 'none'},
                         format_status_message(f"Downloaded file is empty", "error"),
@@ -110,8 +113,8 @@ def register_callbacks(app):
                     )
                 except pd.errors.ParserError:
                     return (
-                        None,
                         html.Div(f"Error: Could not parse downloaded file", className="error-message"),
+                        None,
                         dash.no_update,
                         {'display': 'none'},
                         format_status_message(f"Could not parse downloaded file", "error"),
@@ -119,8 +122,8 @@ def register_callbacks(app):
                     )
                 except Exception as e:
                     return (
-                        None,
                         html.Div(f"Unexpected error: {str(e)}", className="error-message"),
+                        None,
                         dash.no_update,
                         {'display': 'none'},
                         format_status_message(f"Unexpected error: {str(e)}", "error"),
@@ -152,8 +155,8 @@ def register_callbacks(app):
                 if df.empty:
                     logger.warning("[FILTER] No data available after filtering by date range")
                     return (
-                        None,
                         html.Div(f"Fetched data for location: {city_name}, data type: {data_type}", style={'margin': '20px, 0'}),
+                        None,
                         dash.no_update,
                         {'display': 'none'},
                         format_status_message("No data available for the selected date range", "error"),
@@ -184,10 +187,10 @@ def register_callbacks(app):
             logger.debug(f"[DATA] Required columns present: {required_cols.issubset(df.columns)}")
 
             results = html.Div([
-                html.H3(f"Weather Data for {city_name.upper()}"),
+                html.H2(f"Weather Data for {city_name.upper()}", style={"color": "#C99A5AFF"}),
                 html.P(f"Showing {get_data_type_label(data_type)} data{date_range_text}"),
                 html.P(f"Data points: {len(df)}", className='centered-info'),
-                html.P(f"Date range: {df['DATE'].min().date()} to {df['DATE'].max().date()}"),
+                html.P(f"Available data range for this location: {df['DATE'].min().date()} to {df['DATE'].max().date()}"),
                 dash.dash_table.DataTable(
                     data=df.to_dict('records'),
                     columns=[{'name': i, 'id': i} for i in df.columns],
@@ -196,8 +199,8 @@ def register_callbacks(app):
                 )
             ], className='centered-info')
             return (
-                None,
                 results,  # Filled results container
+                None, # analysis-results
                 df.to_dict('records'),  # Store processed data
                 viz_style,  # Show visualization
                 None,  # No errors
@@ -207,6 +210,7 @@ def register_callbacks(app):
             logger.error(f"[EXCEPTION] Error processing data: {str(e)}", exc_info=True)
             return (
                 html.Div(f"Error: {str(e)}", style={'color': 'red', 'margin': '20px'}),
+                None,
                 dash.no_update,
                 {'display': 'none'},
                 format_status_message(f"Error: {str(e)}", "error"),

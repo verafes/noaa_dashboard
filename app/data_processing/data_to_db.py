@@ -1,14 +1,16 @@
+import glob
 import os
 import sqlite3
 import pandas as pd
 
 from app.data_processing.data_cleaner import list_csv_files, clean_single_csv
-from app.utils import RAW_DATA_DIR, PROCESSED_DATA_DIR, DB_DIR, DB_PATH, DB_NAME, TABLE_NAME, get_latest_csv_filename
+from app.utils import RAW_DATA_DIR, PROCESSED_DATA_DIR, REPO_PROCESSED_DIR, DB_DIR, DB_PATH, DB_NAME, TABLE_NAME, \
+    get_latest_csv_filename, IS_RENDER
 from app.logger import logger
 from dotenv import load_dotenv
 load_dotenv()
 
-MIN_START_DATE = os.getenv('MIN_START_DATE') # MIN_START_DATE=1950-01-01 in env
+MIN_START_DATE = os.getenv('MIN_START_DATE')
 input_dir = RAW_DATA_DIR
 output_dir = PROCESSED_DATA_DIR
 logger.info(f"Input folder: {input_dir}")
@@ -22,11 +24,15 @@ keep_cols = base_cols + optional_cols
 def get_all_cleaned_csv_files() -> list[str]:
     """Get all cleaned CSV files if multiple"""
     csv_files = list_csv_files(PROCESSED_DATA_DIR)
-    logger.info(f"Found cleaned CSV files: {csv_files}")
-    if not csv_files:
-        logger.info("No CSV files to import.")
+    if IS_RENDER and not csv_files:
+        logger.info("Checking REPO_PROCESSED_DIR")
+        csv_files = list_csv_files(REPO_PROCESSED_DIR)
+    if csv_files:
+        logger.info(f"Found cleaned CSV files: {csv_files}")
+        return csv_files
+    else:
+        logger.info("No CSV files found to import.")
         return []
-    return csv_files
 
 def clean_latest_csv_file(filename) -> str:
     """Get latest downloaded CSV filename, clean it, and return the filename."""
@@ -105,6 +111,7 @@ def import_csv_to_db(csv_path: str = None) -> tuple[bool, str]:
                 if 'DATE' in df.columns:
                     df['DATE'] = pd.to_datetime(df['DATE'], errors='coerce')
                     df = df[df['DATE'] >= pd.Timestamp(MIN_START_DATE)]
+                    df['DATE'] = df['DATE'].dt.strftime('%Y-%m-%d')
                     logger.info(f"Filtered data to dates >= {MIN_START_DATE}. Remaining rows: {len(df)}")
 
                 for col in keep_cols:
@@ -121,7 +128,7 @@ def import_csv_to_db(csv_path: str = None) -> tuple[bool, str]:
                 logger.info(f"Inserted {df.shape[0]} rows from {os.path.basename(csv_file)}")
 
             conn.commit()
-            logger.info(f"All data loaded into '{TABLE_NAME}' successfully.")
+            logger.info(f"[DB] All data loaded into '{TABLE_NAME}' successfully.")
 
         return True, f"Successfully imported {df.shape[0]} rows."
     except Exception as e:

@@ -4,6 +4,8 @@ A Python program that retrieves **historical daily weather data** from the [NOAA
 
 All operations, from web scraping with Selenium and data cleaning, to transforming, storing in a SQLite database, querying, and presenting interactive visualizations, are seamlessly managed and triggered directly through the intuitive user interface.
 
+You can access the live version of the dashboard at: [[https://noaa-dashboard.onrender.com](https://noaa-dashboard.onrender.com)
+
 # NOAA Historical Weather Data Dashboard
 
 ## Project Overview
@@ -21,15 +23,15 @@ This project provides a robust solution for retrieving, processing, storing, and
 ## Technologies Used
 
 * **Python 3.x:** The core programming language.
-* **Selenium:** For web scraping and browser automation.
-* **Pandas:** Handles data manipulation, cleaning, and analysis with DataFrames.
-* **SQLite:** A lightweight database for data storage.
+* **Flask:** The lightweight web framework Dash runs on.
 * **Dash:** For building the interactive web dashboard.
+* **SQLite:** A lightweight database for data storage.
+* **Pandas & NumPy:** Handles data manipulation, cleaning, and analysis with DataFrames.
 * **Plotly:** For generating interactive charts and plots within Dash.
+* **Selenium:** For web scraping and browser automation.
 * **Matplotlib & Seaborn:** Generates static and statistical plots.
-* **PyQt5:** Creates cross-platform desktop GUI apps.
 * **python-dotenv:** For managing environment variables (e.g., API keys, database paths).
-* **requests:** For making HTTP requests.
+* **Requests:** For making HTTP requests.
 * **geonamescache:** Provides offline country and city data.
 
 ## Installation
@@ -56,7 +58,7 @@ Before you begin, ensure you have the following installed:
 3.  **Install Dependencies:**
     Install all required Python packages: `pip install -r requirements.txt`
 
-5.  **Environment Variables (Optional but Recommended):**
+4.  **Environment Variables (Optional but Recommended):**
     Create a `.env` file in the root directory of your project to store sensitive information or configuration paths using .env.example
     Ensure you load these variables in your Python code using `python-dotenv`.
 
